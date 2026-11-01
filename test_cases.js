@@ -50,3 +50,4 @@ if (allPassed) {
   console.error('\nSOME CASES FAILED!');
   process.exit(1);
 }
+

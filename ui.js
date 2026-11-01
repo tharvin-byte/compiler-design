@@ -621,50 +621,55 @@ function compileAndRunAll() {
   }
   markStepCompleted('semantic', `${semanticRes.symbolTables.length} syms`);
 
-  // Phase 4: Intermediate Code Generation
-  const t3 = performance.now();
-  const icg = new ICGGenerator();
-  const icgRes = icg.generate(parserRes.ast);
-  AppState.timings.icg = Math.round((performance.now() - t3) * 100) / 100;
-  AppState.results.icg = icgRes;
-  renderICGOutput(icgRes);
-  markStepCompleted('icg', `${icgRes.instructions.length} tac`);
+  try {
+    // Phase 4: Intermediate Code Generation
+    const t3 = performance.now();
+    const icg = new ICGGenerator();
+    const icgRes = icg.generate(parserRes.ast);
+    AppState.timings.icg = Math.round((performance.now() - t3) * 100) / 100;
+    AppState.results.icg = icgRes;
+    renderICGOutput(icgRes);
+    markStepCompleted('icg', `${icgRes.instructions.length} tac`);
 
-  // Phase 5: Code Optimization
-  const t4 = performance.now();
-  const optimizer = new TACOptimizer();
-  const optRes = optimizer.optimize(icgRes);
-  AppState.timings.optimizer = Math.round((performance.now() - t4) * 100) / 100;
-  AppState.results.optimizer = optRes;
-  renderOptimizerOutput(optRes);
-  markStepCompleted('optimizer', `${optRes.stats.savedCount} saved`);
+    // Phase 5: Code Optimization
+    const t4 = performance.now();
+    const optimizer = new TACOptimizer();
+    const optRes = optimizer.optimize(icgRes);
+    AppState.timings.optimizer = Math.round((performance.now() - t4) * 100) / 100;
+    AppState.results.optimizer = optRes;
+    renderOptimizerOutput(optRes);
+    markStepCompleted('optimizer', `${optRes.stats.savedCount} saved`);
 
-  // Phase 6: Code Generation
-  const t5 = performance.now();
-  const codegen = new CodeGenerator();
-  const cgRes = codegen.generate(optRes.functions);
-  AppState.timings.codegen = Math.round((performance.now() - t5) * 100) / 100;
-  AppState.results.codegen = cgRes;
-  renderCodegenOutput(cgRes);
-  markStepCompleted('codegen', `${cgRes.rawAssembly.length} asm`);
+    // Phase 6: Code Generation
+    const t5 = performance.now();
+    const codegen = new CodeGenerator();
+    const cgRes = codegen.generate(optRes.functions);
+    AppState.timings.codegen = Math.round((performance.now() - t5) * 100) / 100;
+    AppState.results.codegen = cgRes;
+    renderCodegenOutput(cgRes);
+    markStepCompleted('codegen', `${cgRes.rawAssembly.length} asm`);
 
-  // Phase 7: Target Code Optimization (Peephole)
-  const t6 = performance.now();
-  AppState.timings.targetopt = Math.round((performance.now() - t6) * 100) / 100;
-  AppState.results.targetopt = cgRes;
-  renderTargetOptOutput(cgRes);
-  markStepCompleted('targetopt', `${cgRes.savedCount} saved`);
+    // Phase 7: Target Code Optimization (Peephole)
+    const t6 = performance.now();
+    AppState.timings.targetopt = Math.round((performance.now() - t6) * 100) / 100;
+    AppState.results.targetopt = cgRes;
+    renderTargetOptOutput(cgRes);
+    markStepCompleted('targetopt', `${cgRes.savedCount} saved`);
 
-  // Phase 8 / Execution: Target VM and Dual-Run AST Verification
-  loadProgramIntoVM(cgRes.optimizedAssembly, parserRes.ast);
-  markStepCompleted('execution', `Ready`);
+    // Phase 8 / Execution: Target VM and Dual-Run AST Verification
+    loadProgramIntoVM(cgRes.optimizedAssembly, parserRes.ast);
+    markStepCompleted('execution', `Ready`);
 
-  // Update Summary Metrics Card
-  renderSummaryMetrics();
-  updateEditorHighlight(); // Clear errors
+    // Update Summary Metrics Card
+    renderSummaryMetrics();
+    updateEditorHighlight(); // Clear errors
 
-  // Switch to execution tab to see real program output!
-  switchTab('execution');
+    // Switch to execution tab to see real program output!
+    switchTab('execution');
+  } catch (pipelineErr) {
+    console.error('Fatal Pipeline Execution Error:', pipelineErr);
+    showToast(`Compilation Pipeline Error: ${pipelineErr.message}`);
+  }
 }
 
 function resetPipeline() {

@@ -12,8 +12,11 @@
  * and maintains an Optimization Action Ledger documenting every optimization applied.
  */
 
-if (typeof require !== 'undefined') {
-  var { TACInstruction } = require('./icg.js');
+function createTACInst(props) {
+  const Cls = typeof TACInstruction !== 'undefined' 
+    ? TACInstruction 
+    : (typeof require !== 'undefined' ? require('./icg.js').TACInstruction : Object);
+  return new Cls(props);
 }
 
 class OptimizationLedgerEntry {
@@ -60,10 +63,10 @@ class TACOptimizer {
     const optimizedFunctions = [];
 
     for (const func of icgResult.functions) {
-      const origInsts = func.instructions.map(i => new TACInstruction({ ...i }));
+      const origInsts = func.instructions.map(i => createTACInst({ ...i }));
       this.beforeTAC.push(...origInsts);
 
-      let currentInsts = origInsts.map(i => new TACInstruction({ ...i }));
+      let currentInsts = origInsts.map(i => createTACInst({ ...i }));
 
       // Run iterative optimization passes until fixed point (max 10 iterations)
       let pass = 0;
@@ -172,7 +175,7 @@ class TACOptimizer {
     const constMap = new Map(); // varName -> constant value (scoped within straight-line code)
 
     for (let i = 0; i < instructions.length; i++) {
-      let inst = new TACInstruction({ ...instructions[i] });
+      let inst = createTACInst({ ...instructions[i] });
 
       // Labels invalidate straight-line constant propagation
       if (inst.op === 'LABEL' || inst.op === 'CALL') {
@@ -288,7 +291,7 @@ class TACOptimizer {
     const exprMap = new Map(); // "arg1 op arg2" -> result variable
 
     for (let i = 0; i < instructions.length; i++) {
-      const inst = new TACInstruction({ ...instructions[i] });
+      const inst = createTACInst({ ...instructions[i] });
 
       // Labels, calls, branches, array stores reset CSE scope
       if (['LABEL', 'CALL', 'GOTO', 'IF_GOTO', 'IF_FALSE_GOTO', 'ARRAY_STORE'].includes(inst.op)) {
