@@ -564,6 +564,8 @@ html, body {
 
 .highlight-layer {
   pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
   background: transparent;
   color: var(--text-primary);
   overflow: hidden;

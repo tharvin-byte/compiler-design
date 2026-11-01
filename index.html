@@ -65,42 +65,42 @@
         <div id="pipelinePulse" class="pulse-indicator"></div>
         <button class="pill-btn active" data-phase="lexer" id="step-lexer">
           <span class="pill-dot"></span>
-          <span class="pill-text">1. Lexer</span>
+          <span class="pill-text">1. Lexical Analysis</span>
           <span class="pill-badge" id="badge-lexer">--</span>
         </button>
         <button class="pill-btn" data-phase="parser" id="step-parser">
           <span class="pill-dot"></span>
-          <span class="pill-text">2. Parser</span>
+          <span class="pill-text">2. Syntax Analysis</span>
           <span class="pill-badge" id="badge-parser">--</span>
         </button>
         <button class="pill-btn" data-phase="semantic" id="step-semantic">
           <span class="pill-dot"></span>
-          <span class="pill-text">3. Semantic</span>
+          <span class="pill-text">3. Semantic Analysis</span>
           <span class="pill-badge" id="badge-semantic">--</span>
         </button>
         <button class="pill-btn" data-phase="icg" id="step-icg">
           <span class="pill-dot"></span>
-          <span class="pill-text">4. TAC & CFG</span>
+          <span class="pill-text">4. Intermediate Code</span>
           <span class="pill-badge" id="badge-icg">--</span>
         </button>
         <button class="pill-btn" data-phase="optimizer" id="step-optimizer">
           <span class="pill-dot"></span>
-          <span class="pill-text">5. Optimizer</span>
+          <span class="pill-text">5. Code Optimization</span>
           <span class="pill-badge" id="badge-optimizer">--</span>
         </button>
         <button class="pill-btn" data-phase="codegen" id="step-codegen">
           <span class="pill-dot"></span>
-          <span class="pill-text">6. Codegen</span>
+          <span class="pill-text">6. Code Generation</span>
           <span class="pill-badge" id="badge-codegen">--</span>
         </button>
         <button class="pill-btn" data-phase="targetopt" id="step-targetopt">
           <span class="pill-dot"></span>
-          <span class="pill-text">7. Peephole</span>
+          <span class="pill-text">7. Target Optimization</span>
           <span class="pill-badge" id="badge-targetopt">--</span>
         </button>
         <button class="pill-btn pill-highlight" data-phase="execution" id="step-execution">
           <span class="pill-dot"></span>
-          <span class="pill-text">Output & VM</span>
+          <span class="pill-text">Execution & VM</span>
           <span class="pill-badge" id="badge-execution">Run</span>
         </button>
       </div>
@@ -175,15 +175,15 @@
         <!-- Viewport Sub-header / Tabs -->
         <div class="viewport-tabs">
           <div class="tabs-list" id="phaseTabs">
-            <button class="tab-item active" data-tab="lexer">1. Lexer</button>
-            <button class="tab-item" data-tab="parser">2. Parser</button>
-            <button class="tab-item" data-tab="semantic">3. Semantic</button>
-            <button class="tab-item" data-tab="icg">4. TAC & CFG</button>
-            <button class="tab-item" data-tab="optimizer">5. Optimizer</button>
-            <button class="tab-item" data-tab="codegen">6. Assembly</button>
-            <button class="tab-item" data-tab="targetopt">7. Peephole</button>
-            <button class="tab-item tab-pill-highlight" data-tab="execution">Output & VM</button>
-            <button class="tab-item" data-tab="summary">Metrics</button>
+            <button class="tab-item active" data-tab="lexer">1. Lexical Analysis</button>
+            <button class="tab-item" data-tab="parser">2. Syntax Analysis</button>
+            <button class="tab-item" data-tab="semantic">3. Semantic Analysis</button>
+            <button class="tab-item" data-tab="icg">4. Intermediate Code</button>
+            <button class="tab-item" data-tab="optimizer">5. Code Optimization</button>
+            <button class="tab-item" data-tab="codegen">6. Code Generation</button>
+            <button class="tab-item" data-tab="targetopt">7. Target Optimization</button>
+            <button class="tab-item tab-pill-highlight" data-tab="execution">Execution & VM</button>
+            <button class="tab-item" data-tab="summary">Summary Metrics</button>
           </div>
           <button id="copyPhaseBtn" class="btn btn-ghost btn-sm" title="Copy output">Copy</button>
         </div>
@@ -335,7 +335,7 @@
         <!-- 5. Optimizer Viewport -->
         <div class="tab-pane" id="tabContent-optimizer">
           <div class="info-row">
-            <div class="info-text"><strong>Phase 5: Intermediate Code Optimizer</strong> — Multi-pass constant folding, propagation, algebraic simplification, and DCE.</div>
+            <div class="info-text"><strong>Phase 5: Code Optimization</strong> — Multi-pass constant folding, propagation, algebraic simplification, and DCE.</div>
             <div class="pill-chip" id="optimizerStatsChip">0 instructions saved</div>
           </div>
 

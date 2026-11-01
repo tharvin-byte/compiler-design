@@ -173,9 +173,17 @@ class Parser {
       return this.parseVariableDeclarationRest(typeName, idName, typeToken, idToken);
     }
 
+    // Allow top-level statements (e.g. print(a); if (...); for (...); while (...); or expression statements)
+    try {
+      const stmt = this.parseStatement();
+      if (stmt) return stmt;
+    } catch (err) {
+      // Fall through to syntax error recovery
+    }
+
     // Unexpected top-level token
     const token = this.peek();
-    this.error(token, `Expected a function or variable declaration, found '${token.value}'`, `Start declarations with a type such as 'int', 'float', 'void', or 'bool'.`);
+    this.error(token, `Expected a declaration or statement, found '${token.value}'`, `Start declarations with a type such as 'int', 'float', 'void', or 'bool'.`);
     this.advance();
     this.synchronize();
     return null;

@@ -573,7 +573,26 @@ class ASTInterpreter {
 
     const mainFunc = this.functions.get('main');
     if (!mainFunc) {
-      return { output: [], outputString: '', verified: false };
+      // Evaluate top-level statements directly if main() is omitted
+      try {
+        for (const decl of ast.declarations || []) {
+          if (decl.type !== 'FunctionDeclaration') {
+            this.evalStmt(decl, this.globals);
+          }
+        }
+        return {
+          output: this.outputBuffer,
+          outputString: this.outputBuffer.join('\n'),
+          verified: true
+        };
+      } catch (err) {
+        return {
+          output: this.outputBuffer,
+          outputString: this.outputBuffer.join('\n'),
+          verified: false,
+          error: err.message
+        };
+      }
     }
 
     try {

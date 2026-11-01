@@ -271,10 +271,22 @@ function loadSavedState() {
   }
 
   const editor = document.getElementById('codeEditor');
-  // Guard against any previously polluted/corrupted localStorage containing literal <span> tags or corrupted fragments
-  if (savedCode && !savedCode.includes('<span') && !savedCode.includes('hl-type') && !savedCode.includes('intspan') && !savedCode.includes('&lt;span')) {
-    editor.value = savedCode;
-    AppState.sourceCode = savedCode;
+  // Clean any accidental HTML tags or entity escapes if found in saved state
+  if (savedCode) {
+    let clean = savedCode;
+    if (clean.includes('<span') || clean.includes('hl-type') || clean.includes('intspan') || clean.includes('&lt;span')) {
+      const temp = document.createElement('div');
+      temp.innerHTML = clean;
+      clean = (temp.textContent || temp.innerText || clean).replace(/<[^>]*>/g, '');
+    }
+    if (clean.trim().length > 0) {
+      editor.value = clean;
+      AppState.sourceCode = clean;
+    } else {
+      editor.value = EXAMPLES.default;
+      AppState.sourceCode = EXAMPLES.default;
+      localStorage.removeItem('compilerlens_code');
+    }
   } else {
     editor.value = EXAMPLES.default;
     AppState.sourceCode = EXAMPLES.default;
@@ -345,9 +357,28 @@ function initEditor() {
   const gutter = document.getElementById('editorGutter');
 
   textarea.addEventListener('input', () => {
+    // Strip accidental pasted HTML tags
+    if (textarea.value.includes('<span') || textarea.value.includes('hl-type')) {
+      const temp = document.createElement('div');
+      temp.innerHTML = textarea.value;
+      textarea.value = (temp.textContent || temp.innerText || textarea.value).replace(/<[^>]*>/g, '');
+    }
     AppState.sourceCode = textarea.value;
     updateEditorHighlight();
     saveState();
+  });
+
+  textarea.addEventListener('paste', () => {
+    setTimeout(() => {
+      if (textarea.value.includes('<span') || textarea.value.includes('hl-type')) {
+        const temp = document.createElement('div');
+        temp.innerHTML = textarea.value;
+        textarea.value = (temp.textContent || temp.innerText || textarea.value).replace(/<[^>]*>/g, '');
+        AppState.sourceCode = textarea.value;
+        updateEditorHighlight();
+        saveState();
+      }
+    }, 0);
   });
 
   textarea.addEventListener('scroll', () => {
@@ -645,6 +676,10 @@ function resetStepIndicators() {
     const node = document.getElementById(`step-${s}`);
     if (node) {
       node.className = `pill-btn ${s === 'execution' ? 'pill-highlight' : ''}`;
+    }
+    const badge = document.getElementById(`badge-${s}`);
+    if (badge) {
+      badge.textContent = s === 'execution' ? 'Run' : '--';
     }
   });
 }
@@ -1162,8 +1197,8 @@ function renderOptimizerOutput(res) {
     afterHtml += `<div class="diff-line ${statusClass}"><span class="diff-num">${d.line}</span><span>${escapeHtml(d.after)}</span></div>`;
   });
 
-  beforeBody.innerHTML = beforeHtml;
-  afterBody.innerHTML = afterHtml;
+  beforeBody.innerHTML = beforeHtml || '<div class="empty-state">No instructions to display.</div>';
+  afterBody.innerHTML = afterHtml || '<div class="empty-state">No instructions to display.</div>';
 
   // Ledger list
   let ledgerHtml = '';
@@ -1205,8 +1240,8 @@ function renderTargetOptOutput(res) {
     afterHtml += `<div class="diff-line ${statusClass}"><span class="diff-num">${d.line}</span><span>${escapeHtml(d.after)}</span></div>`;
   });
 
-  beforeBody.innerHTML = beforeHtml;
-  afterBody.innerHTML = afterHtml;
+  beforeBody.innerHTML = beforeHtml || '<div class="empty-state">No instructions to display.</div>';
+  afterBody.innerHTML = afterHtml || '<div class="empty-state">No instructions to display.</div>';
 
   let rulesHtml = '';
   res.rulesApplied.forEach(r => {
@@ -1381,7 +1416,7 @@ function updateVMInspector(stepInfo) {
     if (card) {
       const valElem = card.querySelector('.reg-val');
       const curVal = vmInstance.registers[regName];
-      if (valElem.textContent !== String(curVal)) {
+      if (valElem && valElem.textContent !== String(curVal)) {
         valElem.textContent = curVal;
         card.classList.add('flash');
         setTimeout(() => card.classList.remove('flash'), 300);

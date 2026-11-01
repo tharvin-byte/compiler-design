@@ -117,22 +117,21 @@ class SemanticAnalyzer {
       }
     }
 
-    // Pass 2: Analyze function bodies and statements
+    // Pass 2: Analyze function bodies and top-level statements
     for (const decl of ast.declarations || []) {
       if (decl.type === 'FunctionDeclaration') {
         this.analyzeFunction(decl);
+      } else if (!['VariableDeclaration', 'ArrayDeclaration'].includes(decl.type)) {
+        this.analyzeStatement(decl);
       }
     }
 
     // Verification check for main function
     const mainSym = this.globalScope.resolve('main');
     if (!mainSym || mainSym.kind !== 'function') {
-      this.warnings.push({
-        phase: 'Semantic',
-        line: 1,
-        col: 1,
-        message: "No 'main()' function found in program. Execution may require an entry point.",
-        suggestion: "Define 'int main() { ... }'."
+      this.passedChecks.push({
+        name: 'Entry Point Check',
+        message: "No explicit 'main()' declared. Compiler automatically synthesizes a top-level 'main()' entry point."
       });
     } else {
       this.passedChecks.push({

@@ -96,15 +96,78 @@ class ICGGenerator {
 
     if (!ast) return { instructions: [], functions: [], blocks: [] };
 
-    // Process top-level declarations
+    // Separate top-level items: functions vs top-level globals and statements
+    const funcDecls = [];
+    const topLevelItems = [];
+
     for (const decl of ast.declarations || []) {
       if (decl.type === 'FunctionDeclaration') {
-        this.generateFunction(decl);
-      } else if (decl.type === 'VariableDeclaration') {
-        this.generateGlobalVariables(decl);
-      } else if (decl.type === 'ArrayDeclaration') {
-        this.generateGlobalArray(decl);
+        funcDecls.push(decl);
+      } else {
+        topLevelItems.push(decl);
       }
+    }
+
+    const userMain = funcDecls.find(f => f.name === 'main');
+
+    // 1. Process all helper functions (non-main)
+    for (const func of funcDecls) {
+      if (func !== userMain) {
+        this.generateFunction(func);
+      }
+    }
+
+    // 2. Process main function (or synthesize main if omitted)
+    if (userMain) {
+      this.currentFunction = {
+        name: 'main',
+        returnType: userMain.returnType || 'int',
+        params: userMain.params || [],
+        instructions: [],
+        blocks: []
+      };
+      this.functions.push(this.currentFunction);
+
+      this.emit('LABEL', null, null, 'func_main', userMain.line);
+
+      // Prepend top-level global variables, arrays, and statements into main entry
+      for (const item of topLevelItems) {
+        this.generateStatement(item);
+      }
+
+      // Then user main body statements
+      if (userMain.body) {
+        for (const stmt of userMain.body.statements || []) {
+          this.generateStatement(stmt);
+        }
+      }
+
+      // Ensure explicit return if missing
+      const last = this.currentFunction.instructions[this.currentFunction.instructions.length - 1];
+      if (!last || last.op !== 'RETURN') {
+        this.emit('RETURN', '0', null, null, userMain.line);
+      }
+
+      this.currentFunction = null;
+    } else {
+      // Synthesize default main function to execute top-level code!
+      this.currentFunction = {
+        name: 'main',
+        returnType: 'int',
+        params: [],
+        instructions: [],
+        blocks: []
+      };
+      this.functions.push(this.currentFunction);
+
+      this.emit('LABEL', null, null, 'func_main', 1);
+
+      for (const item of topLevelItems) {
+        this.generateStatement(item);
+      }
+
+      this.emit('RETURN', '0', null, null, 1);
+      this.currentFunction = null;
     }
 
     // Partition basic blocks for each function
