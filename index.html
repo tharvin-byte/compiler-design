@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CompilerLens — Interactive 7-Phase Compiler & Virtual Machine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-dark">
+  <!-- Animated Background Mesh -->
+  <div class="mesh-background" aria-hidden="true"></div>
+
+  <!-- App Container -->
+  <div class="app-layout">
+    
+    <!-- Top Hero Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-group">
+          <div class="logo-icon">
+            <svg viewBox="0 0 28 28" width="24" height="24" fill="none">
+              <circle cx="14" cy="14" r="12" stroke="url(#logo-grad)" stroke-width="2.5" />
+              <path d="M9 14L13 18L19 10" stroke="url(#logo-grad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <defs>
+                <linearGradient id="logo-grad" x1="2" y1="2" x2="26" y2="26" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#00f2fe"/>
+                  <stop offset="0.5" stop-color="#7f00ff"/>
+                  <stop offset="1" stop-color="#ff007f"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div class="logo-text">
+            <span class="logo-title">CompilerLens</span>
+            <span class="logo-badge">v2.0 Pro</span>
+          </div>
+        </div>
+        <p class="tagline">Watch your code travel through every phase of a compiler, then watch it run.</p>
+      </div>
+
+      <div class="header-actions">
+        <div class="examples-select-wrapper">
+          <label for="exampleSelect" class="sr-only">Load Example</label>
+          <span class="select-icon">⚡</span>
+          <select id="exampleSelect" class="select-dropdown" title="Select a pre-loaded program">
+            <option value="default">Default: Arithmetic & Function Loop</option>
+            <option value="factorial">Recursion: Factorial (5! = 120)</option>
+            <option value="fibonacci">Recursion: Fibonacci Series</option>
+            <option value="bubblesort">Arrays: Bubble Sort (5 Elements)</option>
+            <option value="primechecker">Loops: Prime Number Checker</option>
+            <option value="optimization">Optimizer Demo: Folding & Algebraic DCE</option>
+            <option value="semantic_error">Semantic Error Demo: Undeclared Variable</option>
+            <option value="syntax_error">Syntax Error Demo: Missing Semicolon</option>
+            <option value="runtime_divzero">Runtime Error Demo: Division by Zero</option>
+            <option value="infinite_loop">Safety Demo: Infinite Loop Guard</option>
+          </select>
+        </div>
+
+        <button id="themeToggleBtn" class="btn btn-secondary icon-btn" title="Toggle Light / Dark Theme">
+          <span class="theme-icon">🌙</span>
+        </button>
+
+        <button id="exportReportBtn" class="btn btn-secondary" title="Export complete compilation report">
+          <span>📄 Export Report</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 7-Phase Horizontal Pipeline Stepper -->
+    <nav class="pipeline-section" aria-label="Compiler Pipeline Stepper">
+      <div class="pipeline-rail">
+        <div id="pipelinePulse" class="pipeline-pulse"></div>
+      </div>
+      <div class="pipeline-steps" id="pipelineSteps">
+        <!-- Step 1 -->
+        <button class="step-node active" data-phase="lexer" id="step-lexer">
+          <div class="step-indicator">
+            <span class="step-num">1</span>
+            <span class="step-status-icon">✓</span>
+          </div>
+          <div class="step-label">
+            <span class="step-title">Lexical</span>
+            <span class="step-badge" id="badge-lexer">--</span>
+          </div>
+        </button>
+        <!-- Step 2 -->
+        <button class="step-node" data-phase="parser" id="step-parser">
+          <div class="step-indicator">
+            <span class="step-num">2</span>
+            <span class="step-status-icon">✓</span>
+          </div>
+          <div class="step-label">
+            <span class="step-title">Syntax</span>
+            <span class="step-badge" id="badge-parser">--</span>
+          </div>
+        </button>
+        <!-- Step 3 -->
+        <button class="step-node" data-phase="semantic" id="step-semantic">
+          <div class="step-indicator">
+            <span class="step-num">3</span>
+            <span class="step-status-icon">✓</span>
+          </div>
+          <div class="step-label">
+            <span class="step-title">Semantic</span>
+            <span class="step-badge" id="badge-semantic">--</span>
+          </div>
+        </button>
+        <!-- Step 4 -->
+        <button class="step-node" data-phase="icg" id="step-icg">
+          <div class="step-indicator">
+            <span class="step-num">4</span>
+            <span class="step-status-icon">✓</span>
+          </div>
+          <div class="step-label">
+            <span class="step-title">TAC & CFG</span>
+            <span class="step-badge" id="badge-icg">--</span>
+          </div>
+        </button>
+        <!-- Step 5 -->
+        <button class="step-node" data-phase="optimizer" id="step-optimizer">
+          <div class="step-indicator">
+            <span class="step-num">5</span>
+            <span class="step-status-icon">✓</span>
+          </div>
+          <div class="step-label">
+            <span class="step-title">Optimizer</span>
+            <span class="step-badge" id="badge-optimizer">--</span>
+          </div>
+        </button>
+        <!-- Step 6 -->
+        <button class="step-node" data-phase="codegen" id="step-codegen">
+          <div class="step-indicator">
+            <span class="step-num">6</span>
+            <span class="step-status-icon">✓</span>
+          </div>
+          <div class="step-label">
+            <span class="step-title">Code Gen</span>
+            <span class="step-badge" id="badge-codegen">--</span>
+          </div>
+        </button>
+        <!-- Step 7 -->
+        <button class="step-node" data-phase="targetopt" id="step-targetopt">
+          <div class="step-indicator">
+            <span class="step-num">7</span>
+            <span class="step-status-icon">✓</span>
+          </div>
+          <div class="step-label">
+            <span class="step-title">Peephole</span>
+            <span class="step-badge" id="badge-targetopt">--</span>
+          </div>
+        </button>
+        <!-- Step 8: Execution -->
+        <button class="step-node special-node" data-phase="execution" id="step-execution">
+          <div class="step-indicator exec-indicator">
+            <span class="step-num">▶</span>
+            <span class="step-status-icon">✓</span>
+          </div>
+          <div class="step-label">
+            <span class="step-title">Execution</span>
+            <span class="step-badge" id="badge-execution">Run</span>
+          </div>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Workspace: Split Pane -->
+    <main class="workspace-grid">
+      
+      <!-- Left Panel: Editor & Controls -->
+      <section class="editor-panel glass-card">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <span class="panel-icon">💻</span>
+            <h2 class="panel-title">Source Code (C-Subset)</h2>
+          </div>
+          <div class="editor-file-actions">
+            <label class="btn btn-ghost file-upload-label" title="Upload .c or .txt file">
+              <span>📂 Open</span>
+              <input type="file" id="fileUploadInput" accept=".c,.cpp,.txt" hidden>
+            </label>
+            <button id="downloadSourceBtn" class="btn btn-ghost" title="Download source code">
+              <span>💾 Save</span>
+            </button>
+            <button id="clearEditorBtn" class="btn btn-ghost" title="Clear Editor">
+              <span>🗑 Clear</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Code Editor Surface -->
+        <div class="editor-container" id="editorContainer">
+          <div class="editor-gutter" id="editorGutter">
+            <div class="gutter-number">1</div>
+          </div>
+          <div class="editor-stage">
+            <pre class="editor-highlight-layer" id="editorHighlightLayer" aria-hidden="true"></pre>
+            <textarea id="codeEditor" class="code-textarea" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="// Type or paste your C program here..."></textarea>
+          </div>
+        </div>
+
+        <!-- Quick Fix Banner -->
+        <div id="quickFixContainer" class="quick-fix-container hidden">
+          <div class="quick-fix-content">
+            <span class="quick-fix-icon">💡</span>
+            <span id="quickFixText" class="quick-fix-text">Quick fix available:</span>
+          </div>
+          <button id="applyQuickFixBtn" class="btn btn-xs btn-neon">Apply Fix</button>
+        </div>
+
+        <!-- Action Control Bar -->
+        <div class="editor-control-bar">
+          <div class="primary-controls">
+            <button id="compileRunBtn" class="btn btn-primary" title="Compile through all phases and execute (Ctrl+Enter)">
+              <span class="btn-icon">⚡</span>
+              <span class="btn-label">Compile & Run</span>
+              <kbd class="shortcut-badge">Ctrl+↵</kbd>
+            </button>
+            <button id="stepPhaseBtn" class="btn btn-secondary" title="Advance one compiler phase">
+              <span>⏭ Step Phase</span>
+            </button>
+            <button id="autoPlayBtn" class="btn btn-secondary" title="Auto-advance through compiler phases">
+              <span id="autoPlayIcon">▶</span>
+              <span id="autoPlayText">Auto-Play</span>
+            </button>
+            <button id="resetPipelineBtn" class="btn btn-ghost" title="Reset compiler state">
+              <span>↺ Reset</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Panel: Visualizer & Viewports -->
+      <section class="visualizer-panel glass-card">
+        
+        <!-- Viewport Tabs Header -->
+        <div class="tabs-header">
+          <div class="tabs-scrollable" id="phaseTabs">
+            <button class="tab-btn active" data-tab="lexer">1. Lexer</button>
+            <button class="tab-btn" data-tab="parser">2. Parser (AST)</button>
+            <button class="tab-btn" data-tab="semantic">3. Semantic</button>
+            <button class="tab-btn" data-tab="icg">4. TAC & CFG</button>
+            <button class="tab-btn" data-tab="optimizer">5. Optimizer</button>
+            <button class="tab-btn" data-tab="codegen">6. Assembly</button>
+            <button class="tab-btn" data-tab="targetopt">7. Peephole</button>
+            <button class="tab-btn tab-highlight" data-tab="execution">Output & VM</button>
+            <button class="tab-btn" data-tab="summary">Metrics</button>
+          </div>
+          <div class="tab-actions">
+            <button id="copyPhaseBtn" class="btn btn-ghost btn-xs" title="Copy current phase output to clipboard">
+              <span>📋 Copy</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab 1: Lexical Analysis -->
+        <div class="tab-content active" id="tabContent-lexer">
+          <div class="phase-info-bar">
+            <div class="phase-explainer">
+              <strong>Phase 1: Lexical Analysis</strong> — Converts source characters into tokens, filters whitespace/comments, and computes lexical metrics.
+            </div>
+            <div class="phase-metrics-chips" id="lexerMetricsChips"></div>
+          </div>
+
+          <div class="table-search-bar">
+            <input type="text" id="tokenSearchInput" class="filter-input" placeholder="Filter tokens by lexeme, type, line...">
+            <div class="token-filter-tags" id="tokenFilterTags">
+              <span class="tag-chip active" data-type="ALL">ALL</span>
+              <span class="tag-chip" data-type="KEYWORD">KEYWORD</span>
+              <span class="tag-chip" data-type="IDENTIFIER">IDENTIFIER</span>
+              <span class="tag-chip" data-type="OPERATOR">OPERATOR</span>
+              <span class="tag-chip" data-type="NUMBER">NUMBER</span>
+              <span class="tag-chip" data-type="STRING">STRING</span>
+              <span class="tag-chip" data-type="PUNCTUATION">PUNCTUATION</span>
+            </div>
+          </div>
+
+          <div class="table-scroll-container">
+            <table class="data-table" id="tokenTable">
+              <thead>
+                <tr>
+                  <th style="width: 60px;">#</th>
+                  <th>Lexeme</th>
+                  <th>Token Type</th>
+                  <th>Line : Col</th>
+                  <th>Length</th>
+                </tr>
+              </thead>
+              <tbody id="tokenTableBody">
+                <tr><td colspan="5" class="empty-state">No tokens generated yet. Click "Compile & Run".</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 2: Syntax Analysis (AST) -->
+        <div class="tab-content" id="tabContent-parser">
+          <div class="phase-info-bar">
+            <div class="phase-explainer">
+              <strong>Phase 2: Syntax Analysis</strong> — Builds the hierarchical Abstract Syntax Tree (AST), checking grammar and structure.
+            </div>
+            <div class="ast-view-toggle">
+              <button id="astViewSvgBtn" class="btn btn-xs btn-toggle active">Interactive SVG</button>
+              <button id="astViewTextBtn" class="btn btn-xs btn-toggle">Compact Text</button>
+            </div>
+          </div>
+
+          <!-- SVG Visualizer Container -->
+          <div id="astSvgWrapper" class="ast-canvas-wrapper">
+            <div class="ast-canvas-controls">
+              <button id="zoomInAstBtn" class="btn btn-xs btn-icon" title="Zoom In">➕</button>
+              <button id="zoomOutAstBtn" class="btn btn-xs btn-icon" title="Zoom Out">➖</button>
+              <button id="resetZoomAstBtn" class="btn btn-xs btn-icon" title="Reset View">🎯</button>
+              <span class="ast-hint">Drag to pan • Scroll to zoom • Click node to collapse/expand</span>
+            </div>
+            <svg id="astSvg" class="ast-svg-surface" width="100%" height="100%">
+              <g id="astSvgRoot"></g>
+            </svg>
+          </div>
+
+          <!-- Text View Container -->
+          <div id="astTextWrapper" class="code-viewport hidden">
+            <pre id="astTextContent" class="code-block"></pre>
+          </div>
+        </div>
+
+        <!-- Tab 3: Semantic Analysis -->
+        <div class="tab-content" id="tabContent-semantic">
+          <div class="phase-info-bar">
+            <div class="phase-explainer">
+              <strong>Phase 3: Semantic Analysis</strong> — Validates scope, enforces types, verifies function signatures, and manages symbol tables.
+            </div>
+          </div>
+
+          <div class="semantic-split-layout">
+            <!-- Left: Symbol Table -->
+            <div class="semantic-section">
+              <h3 class="sub-header">Scoped Symbol Table</h3>
+              <div class="table-scroll-container">
+                <table class="data-table" id="symbolTable">
+                  <thead>
+                    <tr>
+                      <th>Identifier</th>
+                      <th>Type</th>
+                      <th>Kind</th>
+                      <th>Scope Level</th>
+                      <th>Scope Context</th>
+                      <th>Line</th>
+                    </tr>
+                  </thead>
+                  <tbody id="symbolTableBody">
+                    <tr><td colspan="6" class="empty-state">No symbol table generated.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Right: Diagnostics & Checks -->
+            <div class="semantic-section">
+              <h3 class="sub-header">Compiler Diagnostics & Validation</h3>
+              <div id="semanticDiagnosticsList" class="diagnostics-list">
+                <div class="empty-state">No semantic checks performed yet.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Intermediate Code Generation (TAC & CFG) -->
+        <div class="tab-content" id="tabContent-icg">
+          <div class="phase-info-bar">
+            <div class="phase-explainer">
+              <strong>Phase 4: Intermediate Code Generation</strong> — Emits linear Three-Address Code (TAC) and visualizes the Control Flow Graph (CFG) of basic blocks.
+            </div>
+            <div class="icg-view-toggle">
+              <button id="icgViewBothBtn" class="btn btn-xs btn-toggle active">Split View</button>
+              <button id="icgViewTacBtn" class="btn btn-xs btn-toggle">TAC Only</button>
+              <button id="icgViewCfgBtn" class="btn btn-xs btn-toggle">CFG Graph</button>
+            </div>
+          </div>
+
+          <div class="icg-split-layout" id="icgSplitLayout">
+            <!-- Linear TAC List -->
+            <div class="icg-tac-column" id="icgTacColumn">
+              <h3 class="sub-header">Three-Address Code (TAC)</h3>
+              <div class="code-viewport" id="tacCodeViewport">
+                <pre id="tacCodeContent" class="code-block"></pre>
+              </div>
+            </div>
+
+            <!-- CFG Diagram -->
+            <div class="icg-cfg-column" id="icgCfgColumn">
+              <h3 class="sub-header">Control Flow Graph (Basic Blocks)</h3>
+              <div class="cfg-canvas-wrapper" id="cfgCanvasWrapper">
+                <svg id="cfgSvg" class="cfg-svg-surface" width="100%" height="100%">
+                  <defs>
+                    <marker id="arrow-true" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+                      <path d="M0,0 L0,6 L9,3 z" fill="#10b981" />
+                    </marker>
+                    <marker id="arrow-false" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+                      <path d="M0,0 L0,6 L9,3 z" fill="#f43f5e" />
+                    </marker>
+                    <marker id="arrow-uncond" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+                      <path d="M0,0 L0,6 L9,3 z" fill="#00f2fe" />
+                    </marker>
+                  </defs>
+                  <g id="cfgSvgRoot"></g>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 5: Code Optimizer -->
+        <div class="tab-content" id="tabContent-optimizer">
+          <div class="phase-info-bar">
+            <div class="phase-explainer">
+              <strong>Phase 5: Intermediate Code Optimizer</strong> — Multi-pass constant folding, propagation, algebraic simplification, CSE, dead code elimination, and loop-invariant motion.
+            </div>
+            <div class="optimizer-stats-chip" id="optimizerStatsChip">0 instructions saved</div>
+          </div>
+
+          <div class="optimizer-layout">
+            <!-- Side by side diff -->
+            <div class="diff-container">
+              <div class="diff-column">
+                <div class="diff-header">Before Optimization (Raw TAC)</div>
+                <div class="diff-body" id="diffBeforeBody"></div>
+              </div>
+              <div class="diff-column">
+                <div class="diff-header">After Optimization (Optimized TAC)</div>
+                <div class="diff-body" id="diffAfterBody"></div>
+              </div>
+            </div>
+
+            <!-- Optimization Ledger -->
+            <div class="optimization-ledger">
+              <h3 class="sub-header">Optimization Action Ledger</h3>
+              <div id="optimizationLedgerList" class="ledger-list">
+                <div class="empty-state">No optimizations applied.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 6: Code Generation (Assembly) -->
+        <div class="tab-content" id="tabContent-codegen">
+          <div class="phase-info-bar">
+            <div class="phase-explainer">
+              <strong>Phase 6: Code Generation</strong> — Generates target machine assembly for an 8-register architecture (R0-R7, SP, FP) with stack frame conventions.
+            </div>
+            <div class="asm-stats-badge" id="asmStatsBadge">-- instructions</div>
+          </div>
+
+          <div class="code-viewport">
+            <pre id="rawAssemblyContent" class="code-block"></pre>
+          </div>
+        </div>
+
+        <!-- Tab 7: Target Code Optimization (Peephole) -->
+        <div class="tab-content" id="tabContent-targetopt">
+          <div class="phase-info-bar">
+            <div class="phase-explainer">
+              <strong>Phase 7: Target Code Optimization</strong> — Peephole optimization passes on target assembly: redundant load/store, strength reduction, branch-to-next, redundant moves.
+            </div>
+            <div class="peephole-stats-badge" id="peepholeStatsBadge">0 instructions saved (0%)</div>
+          </div>
+
+          <div class="optimizer-layout">
+            <div class="diff-container">
+              <div class="diff-column">
+                <div class="diff-header">Before Peephole (Generated Asm)</div>
+                <div class="diff-body" id="peepholeDiffBefore"></div>
+              </div>
+              <div class="diff-column">
+                <div class="diff-header">After Peephole (Target Asm)</div>
+                <div class="diff-body" id="peepholeDiffAfter"></div>
+              </div>
+            </div>
+
+            <div class="optimization-ledger">
+              <h3 class="sub-header">Peephole Optimization Rules Applied</h3>
+              <div id="peepholeRulesList" class="ledger-list">
+                <div class="empty-state">No peephole optimizations applied.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 8: Output & VM Execution Inspector -->
+        <div class="tab-content" id="tabContent-execution">
+          <div class="phase-info-bar">
+            <div class="phase-explainer">
+              <strong>Execution Engine & Virtual Machine</strong> — Executes target assembly on a register machine with live state inspection and dual-execution verification.
+            </div>
+            <div id="verificationBadge" class="verification-badge pending">
+              <span class="v-icon">⏳</span>
+              <span class="v-text">Pending Execution</span>
+            </div>
+          </div>
+
+          <div class="execution-workspace">
+            <!-- VM Controls Bar -->
+            <div class="vm-control-bar">
+              <div class="vm-btn-group">
+                <button id="vmRunBtn" class="btn btn-sm btn-primary" title="Run program in VM">
+                  <span>▶ Run</span>
+                </button>
+                <button id="vmStepBtn" class="btn btn-sm btn-secondary" title="Execute single assembly instruction">
+                  <span>⏯ Step Inst</span>
+                </button>
+                <button id="vmPauseBtn" class="btn btn-sm btn-secondary" title="Pause execution">
+                  <span>⏸ Pause</span>
+                </button>
+                <button id="vmResetBtn" class="btn btn-sm btn-ghost" title="Reset VM state">
+                  <span>↺ Reset VM</span>
+                </button>
+              </div>
+
+              <div class="vm-speed-slider">
+                <label for="speedSlider">Speed:</label>
+                <input type="range" id="speedSlider" min="10" max="600" value="50" step="10">
+                <span id="speedValueText">50ms</span>
+              </div>
+
+              <div class="vm-metrics-chip" id="vmMetricsChip">
+                <span>0 insts</span> • <span>0 ms</span> • <span>Exit: --</span>
+              </div>
+            </div>
+
+            <!-- Execution View Grid -->
+            <div class="vm-grid">
+              
+              <!-- Left: Assembly Stepper View -->
+              <div class="vm-panel vm-asm-panel">
+                <div class="vm-panel-header">Assembly Program (PC Pointer)</div>
+                <div class="vm-asm-scroller" id="vmAsmScroller">
+                  <div class="empty-state">No program loaded into VM.</div>
+                </div>
+              </div>
+
+              <!-- Middle: Registers & Stack -->
+              <div class="vm-panel vm-state-panel">
+                <div class="vm-panel-header">Registers & Machine State</div>
+                <div class="registers-grid" id="vmRegistersGrid">
+                  <div class="reg-card" id="reg-R0"><span class="reg-label">R0</span><span class="reg-val">0</span></div>
+                  <div class="reg-card" id="reg-R1"><span class="reg-label">R1</span><span class="reg-val">0</span></div>
+                  <div class="reg-card" id="reg-R2"><span class="reg-label">R2</span><span class="reg-val">0</span></div>
+                  <div class="reg-card" id="reg-R3"><span class="reg-label">R3</span><span class="reg-val">0</span></div>
+                  <div class="reg-card" id="reg-R4"><span class="reg-label">R4</span><span class="reg-val">0</span></div>
+                  <div class="reg-card" id="reg-R5"><span class="reg-label">R5</span><span class="reg-val">0</span></div>
+                  <div class="reg-card" id="reg-R6"><span class="reg-label">R6</span><span class="reg-val">0</span></div>
+                  <div class="reg-card" id="reg-R7"><span class="reg-label">R7</span><span class="reg-val">0</span></div>
+                </div>
+
+                <div class="pointers-row">
+                  <div class="ptr-card"><span class="ptr-label">PC</span><span class="ptr-val" id="ptr-PC">0</span></div>
+                  <div class="ptr-card"><span class="ptr-label">SP</span><span class="ptr-val" id="ptr-SP">8000</span></div>
+                  <div class="ptr-card"><span class="ptr-label">FP</span><span class="ptr-val" id="ptr-FP">8000</span></div>
+                  <div class="ptr-card"><span class="ptr-label">Zero</span><span class="ptr-val" id="flag-Z">false</span></div>
+                  <div class="ptr-card"><span class="ptr-label">Sign</span><span class="ptr-val" id="flag-S">false</span></div>
+                </div>
+
+                <div class="vm-panel-header" style="margin-top: 14px;">Active Call Stack</div>
+                <div class="call-stack-list" id="vmCallStackList">
+                  <div class="call-stack-empty">Main Thread (Global / Main)</div>
+                </div>
+              </div>
+
+              <!-- Right: Execution Console Output -->
+              <div class="vm-panel vm-console-panel">
+                <div class="vm-panel-header">
+                  <span>Program Console Output</span>
+                  <button id="clearConsoleBtn" class="btn btn-xs btn-ghost">Clear</button>
+                </div>
+                <div class="console-body" id="consoleBody">
+                  <div class="console-line system-line">CompilerLens Runtime Console initialized.</div>
+                </div>
+                
+                <!-- Interactive Input Bar for scanf/input() -->
+                <div id="consoleInputGroup" class="console-input-group hidden">
+                  <span class="console-prompt">Program Input Requested:</span>
+                  <input type="text" id="consoleInputField" class="console-input-field" placeholder="Enter integer value...">
+                  <button id="consoleInputSubmitBtn" class="btn btn-xs btn-primary">Send</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 9: Comprehensive Metrics & Summary Card -->
+        <div class="tab-content" id="tabContent-summary">
+          <div class="phase-info-bar">
+            <div class="phase-explainer">
+              <strong>Compiler Metrics & Analytics Summary</strong> — Quantitative summary of all 7 compiler stages, code transformations, and runtime performance.
+            </div>
+          </div>
+
+          <div class="summary-cards-grid">
+            <div class="metric-card">
+              <div class="metric-val" id="metric-tokens">0</div>
+              <div class="metric-label">Tokens Generated</div>
+              <div class="metric-sub" id="metric-tokens-sub">Phase 1 Lexer</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val" id="metric-nodes">0</div>
+              <div class="metric-label">AST Tree Nodes</div>
+              <div class="metric-sub" id="metric-nodes-sub">Phase 2 Parser</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val" id="metric-symbols">0</div>
+              <div class="metric-label">Symbols Tracked</div>
+              <div class="metric-sub" id="metric-symbols-sub">Phase 3 Semantic</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val" id="metric-tac">0</div>
+              <div class="metric-label">TAC Instructions</div>
+              <div class="metric-sub" id="metric-tac-sub">Phase 4 ICG</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val" id="metric-tac-opt">0</div>
+              <div class="metric-label">Optimized TAC</div>
+              <div class="metric-sub" id="metric-tac-opt-sub">Phase 5 Optimizer</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val" id="metric-asm">0</div>
+              <div class="metric-label">Target Assembly</div>
+              <div class="metric-sub" id="metric-asm-sub">Phase 6 Codegen</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val" id="metric-saved">0</div>
+              <div class="metric-label">Instructions Saved</div>
+              <div class="metric-sub" id="metric-saved-sub">Phase 7 Peephole</div>
+            </div>
+            <div class="metric-card highlight-metric">
+              <div class="metric-val" id="metric-exec">0</div>
+              <div class="metric-label">Cycles Executed</div>
+              <div class="metric-sub" id="metric-exec-sub">VM Target Run</div>
+            </div>
+          </div>
+
+          <div class="chart-section glass-card">
+            <h3 class="sub-header">Compilation Time per Phase (Milliseconds)</h3>
+            <div class="bar-chart-container" id="timeBarChart"></div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+    <!-- Error Toast Notification -->
+    <div id="errorToast" class="error-toast hidden" role="alert">
+      <div class="toast-icon">⚠️</div>
+      <div class="toast-message" id="toastMessage">An error occurred during compilation.</div>
+      <button class="toast-close" id="toastCloseBtn">✕</button>
+    </div>
+
+  </div>
+
+  <!-- Scripts in order -->
+  <script src="lexer.js"></script>
+  <script src="parser.js"></script>
+  <script src="semantic.js"></script>
+  <script src="icg.js"></script>
+  <script src="optimizer.js"></script>
+  <script src="codegen.js"></script>
+  <script src="vm.js"></script>
+  <script src="ui.js"></script>
+</body>
+</html>
