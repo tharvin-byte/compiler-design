@@ -270,12 +270,14 @@ function loadSavedState() {
   }
 
   const editor = document.getElementById('codeEditor');
-  if (savedCode) {
+  // Guard against any previously polluted/corrupted localStorage containing literal <span> tags
+  if (savedCode && !savedCode.includes('<span') && !savedCode.includes('hl-type')) {
     editor.value = savedCode;
     AppState.sourceCode = savedCode;
   } else {
     editor.value = EXAMPLES.default;
     AppState.sourceCode = EXAMPLES.default;
+    localStorage.removeItem('compilerlens_code');
   }
 }
 
@@ -403,19 +405,39 @@ function updateEditorHighlight(errors = []) {
   }
   gutter.innerHTML = gutterHtml;
 
-  // Simple token regex highlighter for real-time editor typing
-  const escaped = escapeHtml(code);
-  const highlighted = escaped
-    .replace(/\/\*[\s\S]*?\*\//g, m => `<span class="hl-comment">${m}</span>`)
-    .replace(/\/\/[^\n]*/g, m => `<span class="hl-comment">${m}</span>`)
-    .replace(/"(\\.|[^"\\])*"/g, m => `<span class="hl-string">${m}</span>`)
-    .replace(/'(\\.|[^'\\])*'/g, m => `<span class="hl-string">${m}</span>`)
-    .replace(/\b(int|float|char|bool|void)\b/g, m => `<span class="hl-type">${m}</span>`)
-    .replace(/\b(if|else|while|for|do|break|continue|return|print|printf|scanf|input|true|false)\b/g, m => `<span class="hl-keyword">${m}</span>`)
-    .replace(/\b(\d+(\.\d+)?)\b/g, m => `<span class="hl-number">${m}</span>`)
-    .replace(/([+\-*\/%=<>!&|]+)/g, m => `<span class="hl-operator">${m}</span>`);
+  // Single-pass token-based syntax highlighter (prevents regex tag pollution)
+  highlightLayer.innerHTML = highlightCode(code) + '\n';
+}
 
-  highlightLayer.innerHTML = highlighted + '\n';
+function highlightCode(code) {
+  if (!code) return '';
+  const tokenRegex = /(\/\*[\s\S]*?\*\/)|(\/\/[^\n]*)|("(?:\\.|[^"\\])*")|('(?:\\.|[^'\\])*')|(\b(?:int|float|char|bool|void)\b)|(\b(?:if|else|while|for|do|break|continue|return|print|printf|scanf|input|true|false)\b)|(\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(==|!=|<=|>=|&&|\|\||\+\+|--|\+=|-=|\*=|\/=|%=|[+\-*\/%=<>!&|])|([;,(){}\[\]])|([a-zA-Z_]\w*)|(\s+)|(.)/g;
+
+  let out = '';
+  let match;
+  while ((match = tokenRegex.exec(code)) !== null) {
+    const [full, commentMulti, commentSingle, str, ch, typeKw, kw, num, op, punct, ident, ws, other] = match;
+    if (commentMulti || commentSingle) {
+      out += `<span class="hl-comment">${escapeHtml(full)}</span>`;
+    } else if (str || ch) {
+      out += `<span class="hl-string">${escapeHtml(full)}</span>`;
+    } else if (typeKw) {
+      out += `<span class="hl-type">${escapeHtml(full)}</span>`;
+    } else if (kw) {
+      out += `<span class="hl-keyword">${escapeHtml(full)}</span>`;
+    } else if (num) {
+      out += `<span class="hl-number">${escapeHtml(full)}</span>`;
+    } else if (op) {
+      out += `<span class="hl-operator">${escapeHtml(full)}</span>`;
+    } else if (punct) {
+      out += `<span class="hl-punctuation">${escapeHtml(full)}</span>`;
+    } else if (ident) {
+      out += `<span class="hl-identifier">${escapeHtml(full)}</span>`;
+    } else {
+      out += escapeHtml(full);
+    }
+  }
+  return out;
 }
 
 function escapeHtml(text) {
