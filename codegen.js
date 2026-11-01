@@ -246,6 +246,96 @@ class CodeGenerator {
         break;
       }
 
+      case '&&': {
+        const falseLbl = `L_and_false_${Math.floor(Math.random()*100000)}`;
+        const endLbl = `L_and_end_${Math.floor(Math.random()*100000)}`;
+
+        if (this.isConstant(tac.arg1)) {
+          this.emit('MOV', 'R0', tac.arg1, `load ${tac.arg1}`);
+        } else {
+          this.emit('LOAD', 'R0', this.getVarLocation(tac.arg1), `load ${tac.arg1}`);
+        }
+        this.emit('CMP', 'R0', '0', 'check left operand of &&');
+        this.emit('JE', falseLbl, null, 'short-circuit if false');
+
+        if (this.isConstant(tac.arg2)) {
+          this.emit('MOV', 'R0', tac.arg2, `load ${tac.arg2}`);
+        } else {
+          this.emit('LOAD', 'R0', this.getVarLocation(tac.arg2), `load ${tac.arg2}`);
+        }
+        this.emit('CMP', 'R0', '0', 'check right operand of &&');
+        this.emit('JE', falseLbl, null, 'jump if right operand is false');
+
+        this.emit('MOV', 'R0', '1', 'both true -> 1');
+        this.emit('JMP', endLbl, null, 'skip false label');
+        this.emitLabel(falseLbl);
+        this.emit('MOV', 'R0', '0', 'either false -> 0');
+        this.emitLabel(endLbl);
+        this.emit('STORE', this.getVarLocation(tac.result), 'R0', `store logical AND result in ${tac.result}`);
+        break;
+      }
+
+      case '||': {
+        const trueLbl = `L_or_true_${Math.floor(Math.random()*100000)}`;
+        const endLbl = `L_or_end_${Math.floor(Math.random()*100000)}`;
+
+        if (this.isConstant(tac.arg1)) {
+          this.emit('MOV', 'R0', tac.arg1, `load ${tac.arg1}`);
+        } else {
+          this.emit('LOAD', 'R0', this.getVarLocation(tac.arg1), `load ${tac.arg1}`);
+        }
+        this.emit('CMP', 'R0', '0', 'check left operand of ||');
+        this.emit('JNE', trueLbl, null, 'short-circuit if true');
+
+        if (this.isConstant(tac.arg2)) {
+          this.emit('MOV', 'R0', tac.arg2, `load ${tac.arg2}`);
+        } else {
+          this.emit('LOAD', 'R0', this.getVarLocation(tac.arg2), `load ${tac.arg2}`);
+        }
+        this.emit('CMP', 'R0', '0', 'check right operand of ||');
+        this.emit('JNE', trueLbl, null, 'jump if right operand is true');
+
+        this.emit('MOV', 'R0', '0', 'both false -> 0');
+        this.emit('JMP', endLbl, null, 'skip true label');
+        this.emitLabel(trueLbl);
+        this.emit('MOV', 'R0', '1', 'either true -> 1');
+        this.emitLabel(endLbl);
+        this.emit('STORE', this.getVarLocation(tac.result), 'R0', `store logical OR result in ${tac.result}`);
+        break;
+      }
+
+      case '!': {
+        const trueLbl = `L_not_true_${Math.floor(Math.random()*100000)}`;
+        const endLbl = `L_not_end_${Math.floor(Math.random()*100000)}`;
+
+        if (this.isConstant(tac.arg1)) {
+          this.emit('MOV', 'R0', tac.arg1, `load ${tac.arg1}`);
+        } else {
+          this.emit('LOAD', 'R0', this.getVarLocation(tac.arg1), `load ${tac.arg1}`);
+        }
+        this.emit('CMP', 'R0', '0', 'test ! operand');
+        this.emit('JE', trueLbl, null, '0 -> true');
+        this.emit('MOV', 'R0', '0', 'non-zero -> false (0)');
+        this.emit('JMP', endLbl, null, 'skip true branch');
+        this.emitLabel(trueLbl);
+        this.emit('MOV', 'R0', '1', 'zero -> true (1)');
+        this.emitLabel(endLbl);
+        this.emit('STORE', this.getVarLocation(tac.result), 'R0', `store logical NOT result in ${tac.result}`);
+        break;
+      }
+
+      case 'NEG': {
+        if (this.isConstant(tac.arg1)) {
+          this.emit('MOV', 'R0', tac.arg1, `load ${tac.arg1}`);
+        } else {
+          this.emit('LOAD', 'R0', this.getVarLocation(tac.arg1), `load ${tac.arg1}`);
+        }
+        this.emit('MOV', 'R1', '0', 'R1 = 0');
+        this.emit('SUB', 'R1', 'R0', 'R1 = 0 - R0 (negation)');
+        this.emit('STORE', this.getVarLocation(tac.result), 'R1', `store negation in ${tac.result}`);
+        break;
+      }
+
       case 'GOTO':
         this.emit('JMP', tac.result, null, `unconditional jump to ${tac.result}`);
         break;
