@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body class="theme-dark">
 
@@ -264,7 +264,14 @@
 
           <div class="two-column-split">
             <div>
-              <h4 class="section-heading">Scoped Symbol Table</h4>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <h4 class="section-heading" style="margin-bottom: 0;">Scoped Symbol Table</h4>
+                <div class="btn-group-sm">
+                  <button id="symFilterAll" class="btn btn-sm btn-secondary active">All</button>
+                  <button id="symFilterUser" class="btn btn-sm btn-secondary">User Defined</button>
+                  <button id="symFilterBuiltin" class="btn btn-sm btn-secondary">Built-in</button>
+                </div>
+              </div>
               <div class="table-frame" style="max-height: 400px;">
                 <table class="clean-table" id="symbolTable">
                   <thead>
@@ -555,13 +562,13 @@
   </div>
 
   <!-- Scripts in order with cache-busting -->
-  <script src="lexer.js?v=2"></script>
-  <script src="parser.js?v=2"></script>
-  <script src="semantic.js?v=2"></script>
-  <script src="icg.js?v=2"></script>
-  <script src="optimizer.js?v=2"></script>
-  <script src="codegen.js?v=2"></script>
-  <script src="vm.js?v=2"></script>
-  <script src="ui.js?v=2"></script>
+  <script src="lexer.js?v=3"></script>
+  <script src="parser.js?v=3"></script>
+  <script src="semantic.js?v=3"></script>
+  <script src="icg.js?v=3"></script>
+  <script src="optimizer.js?v=3"></script>
+  <script src="codegen.js?v=3"></script>
+  <script src="vm.js?v=3"></script>
+  <script src="ui.js?v=3"></script>
 </body>
 </html>

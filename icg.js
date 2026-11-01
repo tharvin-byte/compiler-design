@@ -80,6 +80,7 @@ class ICGGenerator {
   constructor() {
     this.tempCounter = 0;
     this.labelCounter = 0;
+    this.globalBlockCounter = 0;
     this.instructions = [];
     this.functions = [];        // Grouped by function: { name, returnType, params, instructions, blocks }
     this.currentFunction = null;
@@ -89,6 +90,7 @@ class ICGGenerator {
   generate(ast) {
     this.tempCounter = 0;
     this.labelCounter = 0;
+    this.globalBlockCounter = 0;
     this.instructions = [];
     this.functions = [];
     this.currentFunction = null;
@@ -578,14 +580,13 @@ class ICGGenerator {
     // Step 2: Form Basic Blocks from leaders
     const blocks = [];
     let currentBlock = null;
-    let blockIdCounter = 0;
 
     for (let i = 0; i < instructions.length; i++) {
       if (isLeader[i]) {
         if (currentBlock) {
           blocks.push(currentBlock);
         }
-        const blockName = `B${blockIdCounter++}`;
+        const blockName = `B${this.globalBlockCounter++}`;
         currentBlock = new BasicBlock(blockName);
         if (instructions[i].op === 'LABEL') {
           currentBlock.label = instructions[i].result;

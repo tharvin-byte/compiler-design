@@ -169,18 +169,17 @@ class SemanticAnalyzer {
     const list = [];
     for (const scope of this.allScopes) {
       for (const [name, sym] of scope.symbols.entries()) {
-        // Exclude system built-ins for cleaner user view unless requested
-        if (sym.line === 0) continue;
         list.push({
           name: sym.name,
           type: sym.type,
           kind: sym.kind,
           scopeLevel: sym.scopeLevel,
           scopeName: sym.scopeName,
-          line: sym.line,
-          col: sym.col,
+          line: sym.line === 0 ? 'built-in' : sym.line,
+          col: sym.col === 0 ? '-' : sym.col,
           size: sym.size,
-          returnType: sym.returnType
+          returnType: sym.returnType,
+          isBuiltin: sym.line === 0
         });
       }
     }

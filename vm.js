@@ -130,6 +130,9 @@ class VirtualMachine {
   }
 
   startAutoPlay(speedMs = 50) {
+    if (this.isHalted || this.PC >= this.instructions.length) {
+      this.reset();
+    }
     this.speed = speedMs;
     this.isRunning = true;
     this.isPaused = false;
@@ -159,7 +162,10 @@ class VirtualMachine {
   }
 
   step() {
-    if (this.isHalted || this.waitingForInput || this.PC >= this.instructions.length) {
+    if (this.isHalted || this.PC >= this.instructions.length) {
+      this.reset();
+    }
+    if (this.waitingForInput) {
       return this.getResult();
     }
 

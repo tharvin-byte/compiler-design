@@ -258,6 +258,24 @@ function initDOM() {
   // Quick Fix
   document.getElementById('applyQuickFixBtn').addEventListener('click', applyCurrentQuickFix);
 
+  // Symbol Table Filter Buttons
+  const filterAllBtn = document.getElementById('symFilterAll');
+  const filterUserBtn = document.getElementById('symFilterUser');
+  const filterBuiltinBtn = document.getElementById('symFilterBuiltin');
+
+  if (filterAllBtn && filterUserBtn && filterBuiltinBtn) {
+    [filterAllBtn, filterUserBtn, filterBuiltinBtn].forEach(b => {
+      b.addEventListener('click', () => {
+        [filterAllBtn, filterUserBtn, filterBuiltinBtn].forEach(btn => btn.classList.remove('active'));
+        b.classList.add('active');
+        if (b.id === 'symFilterAll') currentSymbolFilter = 'all';
+        else if (b.id === 'symFilterUser') currentSymbolFilter = 'user';
+        else currentSymbolFilter = 'builtin';
+        renderFilteredSymbolTable();
+      });
+    });
+  }
+
   // Keyboard shortcut Ctrl+Enter to compile
   window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -1022,25 +1040,42 @@ function clearSourceHighlight() {
 }
 
 // Phase 3: Semantic Renderer
-function renderSemanticOutput(res) {
-  const tableBody = document.getElementById('symbolTableBody');
-  const diagContainer = document.getElementById('semanticDiagnosticsList');
+let currentSemanticSymbols = [];
+let currentSymbolFilter = 'all';
 
-  // Symbol table
+function renderFilteredSymbolTable() {
+  const tableBody = document.getElementById('symbolTableBody');
+  if (!tableBody) return;
+
+  const filtered = currentSemanticSymbols.filter(sym => {
+    if (currentSymbolFilter === 'user') return !sym.isBuiltin;
+    if (currentSymbolFilter === 'builtin') return !!sym.isBuiltin;
+    return true;
+  });
+
   let tableHtml = '';
-  res.symbolTables.forEach(sym => {
+  filtered.forEach(sym => {
+    const kindChip = sym.isBuiltin
+      ? `<span class="chip chip-builtin">builtin</span>`
+      : `<span class="chip chip-${sym.kind}">${sym.kind}</span>`;
     tableHtml += `
       <tr>
-        <td><strong>${sym.name}</strong></td>
-        <td><code>${sym.type}</code></td>
-        <td><span class="chip chip-${sym.kind}">${sym.kind}</span></td>
-        <td>Level ${sym.scopeLevel}</td>
-        <td>${sym.scopeName}</td>
-        <td>${sym.line || 'global'}</td>
+        <td><strong>${escapeHtml(sym.name)}</strong></td>
+        <td><code>${escapeHtml(sym.type)}</code></td>
+        <td>${kindChip}</td>
+        <td>${escapeHtml(sym.scopeName)} (L${sym.scopeLevel})</td>
+        <td>${sym.line}</td>
       </tr>
     `;
   });
-  tableBody.innerHTML = tableHtml || '<tr><td colspan="6" class="empty-state">No symbols recorded.</td></tr>';
+  tableBody.innerHTML = tableHtml || '<tr><td colspan="5" class="empty-state">No symbols match the current filter.</td></tr>';
+}
+
+function renderSemanticOutput(res) {
+  currentSemanticSymbols = res.symbolTables || [];
+  renderFilteredSymbolTable();
+
+  const diagContainer = document.getElementById('semanticDiagnosticsList');
 
   // Diagnostics list (passes, warnings, errors)
   let diagHtml = '';
@@ -1105,6 +1140,7 @@ function renderICGOutput(res) {
 }
 
 function toggleICGView(view) {
+  const splitLayout = document.getElementById('icgSplitLayout');
   const tacCol = document.getElementById('icgTacColumn');
   const cfgCol = document.getElementById('icgCfgColumn');
   const bothBtn = document.getElementById('icgViewBothBtn');
@@ -1114,16 +1150,23 @@ function toggleICGView(view) {
   [bothBtn, tacBtn, cfgBtn].forEach(b => b.classList.remove('active'));
 
   if (view === 'both') {
+    if (splitLayout) splitLayout.style.gridTemplateColumns = '1fr 1fr';
     tacCol.style.display = 'flex';
+    tacCol.style.flexDirection = 'column';
     cfgCol.style.display = 'flex';
+    cfgCol.style.flexDirection = 'column';
     bothBtn.classList.add('active');
   } else if (view === 'tac') {
+    if (splitLayout) splitLayout.style.gridTemplateColumns = '1fr';
     tacCol.style.display = 'flex';
+    tacCol.style.flexDirection = 'column';
     cfgCol.style.display = 'none';
     tacBtn.classList.add('active');
   } else {
+    if (splitLayout) splitLayout.style.gridTemplateColumns = '1fr';
     tacCol.style.display = 'none';
     cfgCol.style.display = 'flex';
+    cfgCol.style.flexDirection = 'column';
     cfgBtn.classList.add('active');
   }
 }
@@ -1136,22 +1179,44 @@ function renderCFGSvg(functions) {
 
   let blocksSvg = '';
   let edgesSvg = '';
-  let maxX = 500;
-  let maxY = 450;
+  let funcHeadersSvg = '';
+  let totalMaxX = 400;
+  let totalMaxY = 450;
+
+  const blockWidth = 260;
+  const colGap = 80;
+  let currentColX = 50;
 
   functions.forEach((f, fIdx) => {
     const blocks = f.blocks || [];
+    if (blocks.length === 0) return;
+
+    // Subroutine header badge
+    funcHeadersSvg += `
+      <text class="cfg-func-label" x="${currentColX}" y="28" font-family="var(--font-mono)" font-size="12" font-weight="700" fill="var(--accent-primary)">
+        Subroutine: ${escapeHtml(f.name)}()
+      </text>
+    `;
+
+    let currentY = 46;
     blocks.forEach((b, idx) => {
-      maxX = Math.max(maxX, b.x + b.width + 60);
-      maxY = Math.max(maxY, b.y + b.height + 60);
+      b.x = currentColX;
+      b.y = currentY;
+      b.width = blockWidth;
+      const instCount = b.instructions.length;
+      b.height = Math.max(70, instCount * 22 + 45);
+
+      currentY += b.height + 60;
+      totalMaxX = Math.max(totalMaxX, b.x + b.width + 60);
+      totalMaxY = Math.max(totalMaxY, currentY + 30);
 
       // Basic block rect
       const headerH = 26;
       blocksSvg += `
         <g class="cfg-block-group" transform="translate(${b.x}, ${b.y})">
-          <rect class="cfg-block-rect" width="${b.width}" height="${b.height}" />
-          <rect class="cfg-block-header" width="${b.width}" height="${headerH}" />
-          <text class="cfg-block-title" x="12" y="17">${b.id} ${b.label ? `[${b.label}]` : ''} - ${f.name}</text>
+          <rect class="cfg-block-rect" width="${b.width}" height="${b.height}" rx="6" />
+          <rect class="cfg-block-header" width="${b.width}" height="${headerH}" rx="6" />
+          <text class="cfg-block-title" x="12" y="17">${escapeHtml(b.id)} ${b.label ? `[${escapeHtml(b.label)}]` : ''} - ${escapeHtml(f.name)}</text>
       `;
 
       b.instructions.forEach((inst, iIdx) => {
@@ -1160,7 +1225,7 @@ function renderCFGSvg(functions) {
 
       blocksSvg += `</g>`;
 
-      // Successor edges
+      // Successor edges within this function
       b.successors.forEach(succ => {
         const targetBlock = blocks.find(blk => blk.id === succ.targetId);
         if (targetBlock) {
@@ -1179,18 +1244,25 @@ function renderCFGSvg(functions) {
             markerId = 'arrow-false';
           }
 
-          // Curved path
-          const midY = (startY + endY) / 2;
-          edgesSvg += `<path class="cfg-edge ${edgeClass}" d="M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}" marker-end="url(#${markerId})" />`;
+          if (endY <= startY) {
+            // Loop back-edge: arc to the right of the block
+            const loopX = b.x + b.width + 36;
+            edgesSvg += `<path class="cfg-edge ${edgeClass}" d="M ${b.x + b.width} ${startY - 20} C ${loopX} ${startY - 20}, ${loopX} ${endY + 20}, ${targetBlock.x + targetBlock.width} ${endY + 20}" marker-end="url(#${markerId})" />`;
+          } else {
+            const midY = (startY + endY) / 2;
+            edgesSvg += `<path class="cfg-edge ${edgeClass}" d="M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}" marker-end="url(#${markerId})" />`;
+          }
         }
       });
     });
+
+    currentColX += blockWidth + colGap;
   });
 
-  rootG.innerHTML = edgesSvg + blocksSvg;
-  svg.setAttribute('viewBox', `0 0 ${maxX} ${maxY}`);
-  svg.style.minWidth = `${maxX}px`;
-  svg.style.minHeight = `${maxY}px`;
+  rootG.innerHTML = edgesSvg + blocksSvg + funcHeadersSvg;
+  svg.setAttribute('viewBox', `0 0 ${totalMaxX} ${totalMaxY}`);
+  svg.style.width = `${totalMaxX}px`;
+  svg.style.height = `${totalMaxY}px`;
 }
 
 // Phase 5: Optimizer Renderer
@@ -1278,9 +1350,11 @@ let vmInstance = null;
 function initVMControls() {
   document.getElementById('vmRunBtn').addEventListener('click', () => {
     if (vmInstance) {
-      if (vmInstance.PC === 0 && vmInstance.stepCount === 0) {
+      if (vmInstance.isHalted || vmInstance.PC >= vmInstance.instructions.length || (vmInstance.PC === 0 && vmInstance.stepCount === 0)) {
+        vmInstance.reset();
         clearConsole();
         appendConsoleOutput('[VM Live Execution Started]', 'system-line');
+        updateVMInspector(null);
       }
       const speed = parseInt(document.getElementById('speedSlider').value, 10);
       vmInstance.startAutoPlay(speed);
@@ -1289,7 +1363,12 @@ function initVMControls() {
 
   document.getElementById('vmStepBtn').addEventListener('click', () => {
     if (vmInstance) {
-      if (vmInstance.PC === 0 && vmInstance.stepCount === 0) {
+      if (vmInstance.isHalted || vmInstance.PC >= vmInstance.instructions.length) {
+        vmInstance.reset();
+        clearConsole();
+        appendConsoleOutput('[VM Stepping Started]', 'system-line');
+        updateVMInspector(null);
+      } else if (vmInstance.PC === 0 && vmInstance.stepCount === 0) {
         clearConsole();
         appendConsoleOutput('[VM Stepping Started]', 'system-line');
       }
