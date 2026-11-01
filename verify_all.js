@@ -228,6 +228,20 @@ test('Phase 7 Peephole Optimizer saves instructions', () => {
   assert(res.savedAsm >= 1, `Expected peephole savings, got ${res.savedAsm}`);
 });
 
+// 12. Standard C #include and printf String Literals
+test('Standard C Preprocessor #include & printf String Literals', () => {
+  const code = `#include <stdio.h>
+
+int main() {
+    printf("Hello, World!\\n");
+    return 0;
+}`;
+  const res = compileAndRun(code);
+  assert.strictEqual(res.phase, 'Success');
+  assert.strictEqual(res.matches, true);
+  assert(res.vmOutput.includes('Hello, World!\n'));
+});
+
 console.log(`\nResults: ${passedTests} / ${totalTests} tests passed.\n`);
 if (passedTests === totalTests) {
   console.log('ALL VERIFICATION CHECKS PASSED PERFECTLY!');

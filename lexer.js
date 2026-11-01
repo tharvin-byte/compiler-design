@@ -95,6 +95,25 @@ class Lexer {
         continue;
       }
 
+      // Preprocessor directives: #include <stdio.h>, #define, etc.
+      if (char === '#') {
+        const startLine = this.line;
+        const startCol = this.col;
+        let directiveText = '';
+        while (this.pos < this.source.length && this.source[this.pos] !== '\n') {
+          directiveText += this.source[this.pos];
+          this.advance();
+        }
+        this.comments.push({
+          type: 'preprocessor',
+          text: directiveText,
+          line: startLine,
+          col: startCol
+        });
+        this.stats.commentCount++;
+        continue;
+      }
+
       // Single-line comment: //
       if (char === '/' && this.peek() === '/') {
         const startLine = this.line;

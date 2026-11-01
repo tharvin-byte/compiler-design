@@ -62,6 +62,13 @@ int main() {
     return 0;
 }`,
 
+  helloworld: `#include <stdio.h>
+
+int main() {
+    printf("Hello, World!\\n");
+    return 0;
+}`,
+
   factorial: `int factorial(int n) {
     if (n <= 1) {
         return 1;
@@ -448,7 +455,7 @@ function updateEditorHighlight(errors = []) {
 
 function highlightCode(code, errorMap = new Map()) {
   if (!code) return '';
-  const tokenRegex = /(\/\*[\s\S]*?\*\/)|(\/\/[^\n]*)|("(?:\\.|[^"\\])*")|('(?:\\.|[^'\\])*')|(\b(?:int|float|char|bool|void)\b)|(\b(?:if|else|while|for|do|break|continue|return|print|printf|scanf|input|true|false)\b)|(\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(==|!=|<=|>=|&&|\|\||\+\+|--|\+=|-=|\*=|\/=|%=|[+\-*\/%=<>!&|])|([;,(){}\[\]])|([a-zA-Z_]\w*)|(\s+)|(.)/g;
+  const tokenRegex = /(\/\*[\s\S]*?\*\/)|(\/\/[^\n]*)|(#[^\n]*)|("(?:\\.|[^"\\])*")|('(?:\\.|[^'\\])*')|(\b(?:int|float|char|bool|void)\b)|(\b(?:if|else|while|for|do|break|continue|return|print|printf|scanf|input|true|false)\b)|(\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(==|!=|<=|>=|&&|\|\||\+\+|--|\+=|-=|\*=|\/=|%=|[+\-*\/%=<>!&|])|([;,(){}\[\]])|([a-zA-Z_]\w*)|(\s+)|(.)/g;
 
   let out = '';
   let match;
@@ -456,10 +463,11 @@ function highlightCode(code, errorMap = new Map()) {
   const markedLines = new Set();
 
   while ((match = tokenRegex.exec(code)) !== null) {
-    const [full, commentMulti, commentSingle, str, ch, typeKw, kw, num, op, punct, ident, ws, other] = match;
+    const [full, commentMulti, commentSingle, preproc, str, ch, typeKw, kw, num, op, punct, ident, ws, other] = match;
     let spanClass = '';
 
     if (commentMulti || commentSingle) spanClass = 'hl-comment';
+    else if (preproc) spanClass = 'hl-preprocessor';
     else if (str || ch) spanClass = 'hl-string';
     else if (typeKw) spanClass = 'hl-type';
     else if (kw) spanClass = 'hl-keyword';

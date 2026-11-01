@@ -599,6 +599,7 @@ html, body {
 .hl-number { color: #f59e0b; }
 .hl-string { color: #10b981; }
 .hl-comment { color: var(--text-muted); font-style: italic; }
+.hl-preprocessor { color: #a78bfa; font-style: italic; }
 .hl-operator { color: #ec4899; }
 .hl-punctuation { color: var(--text-secondary); }
 

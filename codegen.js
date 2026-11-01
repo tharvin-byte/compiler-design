@@ -90,7 +90,9 @@ class CodeGenerator {
     if (typeof val === 'number') return true;
     if (typeof val === 'boolean') return true;
     if (typeof val === 'string') {
-      return /^-?\d+(\.\d+)?$/.test(val) || val === 'true' || val === 'false';
+      return /^-?\d+(\.\d+)?$/.test(val) || val === 'true' || val === 'false' || 
+             (val.startsWith('"') && val.endsWith('"')) || 
+             (val.startsWith("'") && val.endsWith("'"));
     }
     return false;
   }
@@ -282,9 +284,15 @@ class CodeGenerator {
         const argCount = parseInt(tac.arg2, 10) || 0;
 
         if (callee === 'print' || callee === 'printf') {
-          // Top of stack has the argument to print
-          this.emit('POP', 'R0', null, 'pop value to print');
-          this.emit('PRINT', 'R0', null, 'console output');
+          if (argCount <= 1) {
+            this.emit('POP', 'R0', null, 'pop value to print');
+            this.emit('PRINT', 'R0', null, 'console output');
+          } else {
+            for (let i = argCount - 1; i >= 0; i--) {
+              this.emit('POP', `R${i % 8}`, null, `pop printf argument ${i}`);
+            }
+            this.emit('PRINT', 'R0', null, 'console output with format args');
+          }
           break;
         }
 

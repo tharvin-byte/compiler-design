@@ -421,7 +421,15 @@ class VirtualMachine {
       }
 
       case 'PRINT': {
-        const val = this.resolveValue(a1);
+        let val = this.resolveValue(a1);
+        if (typeof val === 'string' && /%[dsf]/.test(val)) {
+          let regIdx = 1;
+          val = val.replace(/%[dsf]/g, () => {
+            const v = this.registers[`R${regIdx}`] !== undefined ? this.registers[`R${regIdx}`] : '';
+            regIdx++;
+            return v;
+          });
+        }
         this.outputBuffer.push(val);
         if (this.onOutput) {
           this.onOutput(val);
@@ -457,15 +465,31 @@ class VirtualMachine {
   resolveValue(arg) {
     if (arg === null || arg === undefined) return 0;
     if (typeof arg === 'number') return arg;
+    if (typeof arg === 'boolean') return arg ? 1 : 0;
     if (arg in this.registers) return this.registers[arg];
     if (arg === 'SP') return this.SP;
     if (arg === 'FP') return this.FP;
-    if (arg.startsWith('[') && arg.endsWith(']')) {
-      const addr = this.resolveAddress(arg);
-      return this.memory[addr] || 0;
+    if (typeof arg === 'string') {
+      if (arg.startsWith('"') && arg.endsWith('"')) {
+        try {
+          return JSON.parse(arg);
+        } catch (_) {
+          return arg.slice(1, -1).replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"');
+        }
+      }
+      if (arg.startsWith("'") && arg.endsWith("'")) {
+        return arg.slice(1, -1).charCodeAt(0);
+      }
+      if (arg === 'true') return 1;
+      if (arg === 'false') return 0;
+      if (arg.startsWith('[') && arg.endsWith(']')) {
+        const addr = this.resolveAddress(arg);
+        return this.memory[addr] || 0;
+      }
+      const parsed = parseInt(arg, 10);
+      return isNaN(parsed) ? arg : parsed;
     }
-    const parsed = parseInt(arg, 10);
-    return isNaN(parsed) ? 0 : parsed;
+    return arg;
   }
 
   resolveAddress(arg) {
@@ -816,8 +840,18 @@ class ASTInterpreter {
         const args = (expr.arguments || []).map(a => this.evalExpr(a, scope));
 
         if (callee === 'print' || callee === 'printf') {
-          for (const a of args) {
-            this.outputBuffer.push(a);
+          if (callee === 'printf' && typeof args[0] === 'string' && /%[dsf]/.test(args[0])) {
+            let regIdx = 1;
+            const formatted = args[0].replace(/%[dsf]/g, () => {
+              const v = args[regIdx] !== undefined ? args[regIdx] : '';
+              regIdx++;
+              return v;
+            });
+            this.outputBuffer.push(formatted);
+          } else {
+            for (const a of args) {
+              this.outputBuffer.push(a);
+            }
           }
           return 0;
         }
