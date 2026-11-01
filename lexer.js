@@ -483,3 +483,4 @@ class Lexer {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { Lexer, Token, TokenType, KEYWORDS };
 }
+

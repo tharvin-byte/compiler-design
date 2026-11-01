@@ -454,21 +454,51 @@ class CodeGenerator {
     const savedCount = instructions.length - current.length;
     const percentage = instructions.length > 0 ? ((savedCount / instructions.length) * 100).toFixed(1) : 0;
 
-    // Diff comparison
+    // Diff comparison (LCS Myers-style Diff)
+    const bStrs = instructions.map(i => (i ? i.toString().trim() : ''));
+    const aStrs = current.map(i => (i ? i.toString().trim() : ''));
+    const m = bStrs.length;
+    const n = aStrs.length;
+
+    const dp = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1));
+    for (let r = 1; r <= m; r++) {
+      for (let c = 1; c <= n; c++) {
+        if (bStrs[r - 1] === aStrs[c - 1]) {
+          dp[r][c] = dp[r - 1][c - 1] + 1;
+        } else {
+          dp[r][c] = Math.max(dp[r - 1][c], dp[r][c - 1]);
+        }
+      }
+    }
+
+    const rawDiff = [];
+    let r = m, c = n;
+    while (r > 0 || c > 0) {
+      if (r > 0 && c > 0 && bStrs[r - 1] === aStrs[c - 1]) {
+        rawDiff.push({ before: bStrs[r - 1], after: aStrs[c - 1], status: 'unchanged' });
+        r--;
+        c--;
+      } else if (c > 0 && (r === 0 || dp[r][c - 1] >= dp[r - 1][c])) {
+        rawDiff.push({ before: '', after: aStrs[c - 1], status: 'added' });
+        c--;
+      } else if (r > 0 && (c === 0 || dp[r][c - 1] < dp[r - 1][c])) {
+        rawDiff.push({ before: bStrs[r - 1], after: '', status: 'removed' });
+        r--;
+      }
+    }
+    rawDiff.reverse();
+
     const diff = [];
-    const maxLen = Math.max(instructions.length, current.length);
-    for (let i = 0; i < maxLen; i++) {
-      const bInst = instructions[i];
-      const aInst = current[i];
-      const bStr = bInst ? bInst.toString() : '';
-      const aStr = aInst ? aInst.toString() : '';
-
-      let status = 'unchanged';
-      if (!bInst && aInst) status = 'added';
-      else if (bInst && !aInst) status = 'removed';
-      else if (bStr !== aStr) status = 'modified';
-
-      diff.push({ line: i + 1, before: bStr, after: aStr, status });
+    let lineNum = 1;
+    for (let k = 0; k < rawDiff.length; k++) {
+      const cur = rawDiff[k];
+      const next = rawDiff[k + 1];
+      if (cur.status === 'removed' && next && next.status === 'added') {
+        diff.push({ line: lineNum++, before: cur.before, after: next.after, status: 'modified' });
+        k++;
+      } else {
+        diff.push({ line: lineNum++, before: cur.before, after: cur.after, status: cur.status });
+      }
     }
 
     return {

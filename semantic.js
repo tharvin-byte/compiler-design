@@ -709,3 +709,4 @@ class SemanticAnalyzer {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { SemanticAnalyzer, Scope, SymbolInfo };
 }
+

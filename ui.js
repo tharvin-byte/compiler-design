@@ -225,7 +225,8 @@ function initDOM() {
 
   // Token Search Input
   document.getElementById('tokenSearchInput').addEventListener('input', (e) => {
-    const activeType = document.querySelector('.tag-chip.active')?.dataset.type || 'ALL';
+    const activeTag = document.querySelector('.tag-pill.active, .tag-chip.active');
+    const activeType = activeTag ? activeTag.dataset.type : 'ALL';
     filterTokenTable(activeType, e.target.value);
   });
 
@@ -270,8 +271,8 @@ function loadSavedState() {
   }
 
   const editor = document.getElementById('codeEditor');
-  // Guard against any previously polluted/corrupted localStorage containing literal <span> tags
-  if (savedCode && !savedCode.includes('<span') && !savedCode.includes('hl-type')) {
+  // Guard against any previously polluted/corrupted localStorage containing literal <span> tags or corrupted fragments
+  if (savedCode && !savedCode.includes('<span') && !savedCode.includes('hl-type') && !savedCode.includes('intspan') && !savedCode.includes('&lt;span')) {
     editor.value = savedCode;
     AppState.sourceCode = savedCode;
   } else {
@@ -396,45 +397,61 @@ function updateEditorHighlight(errors = []) {
   // Update Gutter line numbers
   const lines = code.split('\n');
   const lineCount = lines.length;
-  const errorLines = new Set(errors.map(err => err.line));
+  const errorMap = new Map();
+  errors.forEach(err => {
+    if (err && err.line && !errorMap.has(err.line)) {
+      errorMap.set(err.line, err);
+    }
+  });
 
   let gutterHtml = '';
   for (let i = 1; i <= lineCount; i++) {
-    const hasErr = errorLines.has(i) ? ' has-error' : '';
-    gutterHtml += `<div class="gutter-number${hasErr}">${i}</div>`;
+    const hasErr = errorMap.has(i) ? ' has-error' : '';
+    gutterHtml += `<div class="gutter-number${hasErr}" id="gutter-line-${i}">${i}</div>`;
   }
   gutter.innerHTML = gutterHtml;
 
-  // Single-pass token-based syntax highlighter (prevents regex tag pollution)
-  highlightLayer.innerHTML = highlightCode(code) + '\n';
+  // Single-pass token-based syntax highlighter with inline squiggly error underlines
+  highlightLayer.innerHTML = highlightCode(code, errorMap) + '\n';
 }
 
-function highlightCode(code) {
+function highlightCode(code, errorMap = new Map()) {
   if (!code) return '';
   const tokenRegex = /(\/\*[\s\S]*?\*\/)|(\/\/[^\n]*)|("(?:\\.|[^"\\])*")|('(?:\\.|[^'\\])*')|(\b(?:int|float|char|bool|void)\b)|(\b(?:if|else|while|for|do|break|continue|return|print|printf|scanf|input|true|false)\b)|(\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(==|!=|<=|>=|&&|\|\||\+\+|--|\+=|-=|\*=|\/=|%=|[+\-*\/%=<>!&|])|([;,(){}\[\]])|([a-zA-Z_]\w*)|(\s+)|(.)/g;
 
   let out = '';
   let match;
+  let currentLine = 1;
+  const markedLines = new Set();
+
   while ((match = tokenRegex.exec(code)) !== null) {
     const [full, commentMulti, commentSingle, str, ch, typeKw, kw, num, op, punct, ident, ws, other] = match;
-    if (commentMulti || commentSingle) {
-      out += `<span class="hl-comment">${escapeHtml(full)}</span>`;
-    } else if (str || ch) {
-      out += `<span class="hl-string">${escapeHtml(full)}</span>`;
-    } else if (typeKw) {
-      out += `<span class="hl-type">${escapeHtml(full)}</span>`;
-    } else if (kw) {
-      out += `<span class="hl-keyword">${escapeHtml(full)}</span>`;
-    } else if (num) {
-      out += `<span class="hl-number">${escapeHtml(full)}</span>`;
-    } else if (op) {
-      out += `<span class="hl-operator">${escapeHtml(full)}</span>`;
-    } else if (punct) {
-      out += `<span class="hl-punctuation">${escapeHtml(full)}</span>`;
-    } else if (ident) {
-      out += `<span class="hl-identifier">${escapeHtml(full)}</span>`;
-    } else {
-      out += escapeHtml(full);
+    let spanClass = '';
+
+    if (commentMulti || commentSingle) spanClass = 'hl-comment';
+    else if (str || ch) spanClass = 'hl-string';
+    else if (typeKw) spanClass = 'hl-type';
+    else if (kw) spanClass = 'hl-keyword';
+    else if (num) spanClass = 'hl-number';
+    else if (op) spanClass = 'hl-operator';
+    else if (punct) spanClass = 'hl-punctuation';
+    else if (ident) spanClass = 'hl-identifier';
+
+    let tokenHtml = spanClass ? `<span class="${spanClass}">${escapeHtml(full)}</span>` : escapeHtml(full);
+
+    // If an error is recorded on this line and this token is non-whitespace, wrap in squiggly error
+    if (errorMap && errorMap.has(currentLine) && !markedLines.has(currentLine) && !ws && full.trim().length > 0) {
+      const err = errorMap.get(currentLine);
+      tokenHtml = `<span class="squiggly-error" title="${escapeHtml(err.message)}">${tokenHtml}</span>`;
+      markedLines.add(currentLine);
+    }
+
+    out += tokenHtml;
+
+    // Advance line tracker when token contains newlines
+    if (full.includes('\n')) {
+      const newlines = (full.match(/\n/g) || []).length;
+      currentLine += newlines;
     }
   }
   return out;
@@ -486,6 +503,8 @@ function downloadSourceCode() {
 
 function initPipelineControls() {
   document.getElementById('compileRunBtn').addEventListener('click', compileAndRunAll);
+  const quickCompile = document.getElementById('quickCompileBtn');
+  if (quickCompile) quickCompile.addEventListener('click', compileAndRunAll);
   document.getElementById('stepPhaseBtn').addEventListener('click', stepPipelinePhase);
   document.getElementById('autoPlayBtn').addEventListener('click', togglePipelineAutoPlay);
   document.getElementById('resetPipelineBtn').addEventListener('click', resetPipeline);
@@ -533,6 +552,9 @@ function compileAndRunAll() {
     markStepsSkipped(['semantic', 'icg', 'optimizer', 'codegen', 'targetopt', 'execution']);
     showToast(parserRes.errors[0].message);
     updateEditorHighlight(allErrors);
+    if (parserRes.quickFixes && parserRes.quickFixes.length > 0) {
+      showQuickFix(parserRes.quickFixes[0]);
+    }
     switchTab('parser');
     return;
   }
@@ -824,11 +846,25 @@ function initASTViewer() {
   });
 
   document.getElementById('resetZoomAstBtn').addEventListener('click', () => {
-    AppState.astPan.x = 0;
-    AppState.astPan.y = 0;
-    AppState.astPan.scale = 1;
-    applyASTTransform();
+    const ast = AppState.results.parser?.ast;
+    const bounds = Parser.computeLayout(ast);
+    centerASTView(ast, bounds);
   });
+}
+
+function centerASTView(ast, bounds) {
+  if (!ast) return;
+  const svg = document.getElementById('astSvg');
+  const w = (svg && svg.clientWidth > 0) ? svg.clientWidth : 750;
+  const treeWidth = bounds ? Math.max(120, bounds.maxX - bounds.minX) : 800;
+  if (treeWidth > w - 60) {
+    AppState.astPan.scale = Math.max(0.3, Math.min(1, (w - 60) / treeWidth));
+  } else {
+    AppState.astPan.scale = 0.85;
+  }
+  AppState.astPan.x = (w / 2) - (ast.x * AppState.astPan.scale);
+  AppState.astPan.y = 35;
+  applyASTTransform();
 }
 
 function applyASTTransform() {
@@ -842,6 +878,10 @@ function renderASTSvg(ast) {
   rootG.innerHTML = '';
 
   const bounds = Parser.computeLayout(ast);
+
+  if (AppState.astPan.x === 0 && AppState.astPan.y === 0) {
+    centerASTView(ast, bounds);
+  }
 
   // SVG paths and node groups
   let linksSvg = '';
@@ -920,22 +960,16 @@ function findASTNodeById(root, id) {
 }
 
 function highlightSourceLine(lineNum) {
-  const gutterNums = document.querySelectorAll('.gutter-number');
-  gutterNums.forEach((g, idx) => {
-    if (idx + 1 === lineNum) {
-      g.style.color = '#00f2fe';
-      g.style.fontWeight = 'bold';
-    }
-  });
+  clearSourceHighlight();
+  const targetGutter = document.getElementById(`gutter-line-${lineNum}`);
+  if (targetGutter) {
+    targetGutter.classList.add('highlighted-line');
+  }
 }
 
 function clearSourceHighlight() {
-  const gutterNums = document.querySelectorAll('.gutter-number');
-  gutterNums.forEach(g => {
-    if (!g.classList.contains('has-error')) {
-      g.style.color = '';
-      g.style.fontWeight = '';
-    }
+  document.querySelectorAll('.gutter-number.highlighted-line').forEach(g => {
+    g.classList.remove('highlighted-line');
   });
 }
 
@@ -1047,16 +1081,22 @@ function toggleICGView(view) {
 }
 
 function renderCFGSvg(functions) {
+  const svg = document.getElementById('cfgSvg');
   const rootG = document.getElementById('cfgSvgRoot');
-  if (!rootG) return;
+  if (!rootG || !svg) return;
   rootG.innerHTML = '';
 
   let blocksSvg = '';
   let edgesSvg = '';
+  let maxX = 500;
+  let maxY = 450;
 
   functions.forEach((f, fIdx) => {
     const blocks = f.blocks || [];
     blocks.forEach((b, idx) => {
+      maxX = Math.max(maxX, b.x + b.width + 60);
+      maxY = Math.max(maxY, b.y + b.height + 60);
+
       // Basic block rect
       const headerH = 26;
       blocksSvg += `
@@ -1100,6 +1140,9 @@ function renderCFGSvg(functions) {
   });
 
   rootG.innerHTML = edgesSvg + blocksSvg;
+  svg.setAttribute('viewBox', `0 0 ${maxX} ${maxY}`);
+  svg.style.minWidth = `${maxX}px`;
+  svg.style.minHeight = `${maxY}px`;
 }
 
 // Phase 5: Optimizer Renderer
@@ -1187,6 +1230,10 @@ let vmInstance = null;
 function initVMControls() {
   document.getElementById('vmRunBtn').addEventListener('click', () => {
     if (vmInstance) {
+      if (vmInstance.PC === 0 && vmInstance.stepCount === 0) {
+        clearConsole();
+        appendConsoleOutput('[VM Live Execution Started]', 'system-line');
+      }
       const speed = parseInt(document.getElementById('speedSlider').value, 10);
       vmInstance.startAutoPlay(speed);
     }
@@ -1194,6 +1241,10 @@ function initVMControls() {
 
   document.getElementById('vmStepBtn').addEventListener('click', () => {
     if (vmInstance) {
+      if (vmInstance.PC === 0 && vmInstance.stepCount === 0) {
+        clearConsole();
+        appendConsoleOutput('[VM Stepping Started]', 'system-line');
+      }
       vmInstance.step();
     }
   });
@@ -1268,6 +1319,8 @@ function loadProgramIntoVM(instructions, ast) {
 
   // Run full synchronous execution to populate stats and dual-run verification
   const vmRunResult = vmInstance.runSynchronous();
+  AppState.lastExecutionOutput = (vmRunResult && vmRunResult.output) ? vmRunResult.output.slice() : [];
+  AppState.results.vm = vmRunResult;
 
   // AST Reference Interpreter Dual-Execution Verification
   const astInterpreter = new ASTInterpreter();
@@ -1466,9 +1519,14 @@ function applyCurrentQuickFix() {
   const code = editor.value;
   const lines = code.split('\n');
 
-  // Insert fix at target line
-  const targetLine = Math.min(lines.length, Math.max(1, activeQuickFix.line)) - 1;
-  lines.splice(targetLine, 0, '    ' + activeQuickFix.patch.trim());
+  if (activeQuickFix.type === 'append' || activeQuickFix.append) {
+    const targetLine = Math.min(lines.length, Math.max(1, activeQuickFix.line)) - 1;
+    lines[targetLine] = lines[targetLine] + (activeQuickFix.append || ';');
+  } else {
+    // Insert line declaration before target line
+    const targetLine = Math.min(lines.length, Math.max(1, activeQuickFix.line)) - 1;
+    lines.splice(targetLine, 0, '    ' + (activeQuickFix.patch ? activeQuickFix.patch.trim() : ''));
+  }
   editor.value = lines.join('\n');
   AppState.sourceCode = editor.value;
 
@@ -1510,8 +1568,10 @@ function copyActivePhaseOutput() {
     textToCopy = AppState.results.codegen.rawAssembly.map(i => i.toString()).join('\n');
   } else if (tab === 'targetopt' && AppState.results.targetopt) {
     textToCopy = AppState.results.targetopt.optimizedAssembly.map(i => i.toString()).join('\n');
-  } else if (tab === 'execution' && vmInstance) {
-    textToCopy = vmInstance.outputBuffer.join('\n');
+  } else if (tab === 'execution') {
+    textToCopy = (AppState.lastExecutionOutput && AppState.lastExecutionOutput.length > 0)
+      ? AppState.lastExecutionOutput.join('\n')
+      : (vmInstance ? vmInstance.outputBuffer.join('\n') : '');
   }
 
   if (textToCopy) {
@@ -1530,7 +1590,9 @@ function exportReport() {
   const icg = AppState.results.icg;
   const opt = AppState.results.optimizer;
   const cg = AppState.results.codegen;
-  const vmOutput = vmInstance ? vmInstance.outputBuffer.join('\n') : '';
+  const vmOutput = (AppState.lastExecutionOutput && AppState.lastExecutionOutput.length > 0)
+    ? AppState.lastExecutionOutput.join('\n')
+    : (vmInstance ? vmInstance.outputBuffer.join('\n') : '');
 
   const reportHtml = `<!DOCTYPE html>
 <html lang="en">

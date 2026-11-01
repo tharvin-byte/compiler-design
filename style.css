@@ -97,10 +97,37 @@ html, body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  padding: 18px 24px 24px;
-  gap: 16px;
-  max-width: 1680px;
+  padding: 14px 20px 18px;
+  gap: 12px;
+  max-width: 1720px;
   margin: 0 auto;
+}
+
+@media (min-width: 1025px) {
+  html, body {
+    height: 100vh;
+    overflow: hidden;
+  }
+  .app-layout {
+    height: 100vh;
+    box-sizing: border-box;
+  }
+  .main-workspace {
+    min-height: 0 !important;
+    overflow: hidden;
+  }
+  .editor-card,
+  .viewport-card {
+    height: 100%;
+    min-height: 0 !important;
+  }
+  .editor-wrapper {
+    min-height: 0 !important;
+  }
+  .tab-pane {
+    height: calc(100% - 46px);
+    overflow-y: auto;
+  }
 }
 
 /* ==========================================================================
@@ -464,13 +491,14 @@ html, body {
   position: relative;
   display: flex;
   flex: 1;
-  min-height: 480px;
+  min-height: 380px;
   background: var(--bg-card);
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .gutter {
-  width: 40px;
+  width: 44px;
   padding: 12px 0;
   background: var(--bg-subtle);
   border-right: 1px solid var(--border-color);
@@ -478,13 +506,18 @@ html, body {
   text-align: right;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 22px;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .gutter-number {
-  padding-right: 8px;
+  padding-right: 10px;
+  height: 22px;
+  line-height: 22px;
+  box-sizing: border-box;
+  transition: all var(--duration-fast);
 }
 
 .gutter-number.has-error {
@@ -493,10 +526,17 @@ html, body {
   background: var(--color-error-bg);
 }
 
+.gutter-number.highlighted-line {
+  color: var(--accent-primary);
+  font-weight: 700;
+  background: var(--accent-subtle);
+}
+
 .editor-area {
   position: relative;
   flex: 1;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .highlight-layer,
@@ -508,10 +548,18 @@ html, body {
   height: 100%;
   padding: 12px 16px;
   font-family: var(--font-mono);
-  font-size: 0.84rem;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 22px;
   white-space: pre;
   tab-size: 4;
+  box-sizing: border-box;
+  margin: 0;
+  border: none;
+  letter-spacing: 0;
+  word-spacing: normal;
+  font-variant-ligatures: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .highlight-layer {
@@ -526,11 +574,20 @@ html, body {
   background: transparent;
   color: transparent;
   caret-color: var(--accent-primary);
-  border: none;
   outline: none;
   resize: none;
   overflow: auto;
   z-index: 2;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+/* Squiggly error underline */
+.squiggly-error {
+  text-decoration: underline wavy var(--color-error);
+  text-decoration-skip-ink: none;
+  background-color: var(--color-error-bg);
+  border-radius: 2px;
 }
 
 /* Syntax Color Tokens (Earthy, Elegant, Low Strain) */
@@ -666,6 +723,7 @@ html, body {
 .chip-group {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .pill-chip {
@@ -676,6 +734,125 @@ html, body {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
+}
+
+/* ==========================================================================
+   Badge Chips for Tokens & Symbols
+   ========================================================================== */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  line-height: 1.3;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  font-family: var(--font-mono);
+}
+
+.chip-keyword {
+  background: rgba(212, 101, 62, 0.15);
+  color: #df734c;
+  border-color: rgba(212, 101, 62, 0.3);
+}
+
+.chip-identifier {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.chip-operator {
+  background: rgba(236, 72, 153, 0.15);
+  color: #f472b6;
+  border-color: rgba(236, 72, 153, 0.3);
+}
+
+.chip-number, .chip-float {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.chip-string {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.chip-punctuation {
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+.chip-variable {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+.chip-function {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.chip-parameter {
+  background: rgba(45, 212, 191, 0.15);
+  color: #2dd4bf;
+  border-color: rgba(45, 212, 191, 0.3);
+}
+
+.chip-array {
+  background: rgba(249, 115, 22, 0.15);
+  color: #fb923c;
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+/* Light Theme Chips */
+body.theme-light .chip-keyword {
+  background: rgba(194, 87, 50, 0.1);
+  color: #c25732;
+  border-color: rgba(194, 87, 50, 0.25);
+}
+body.theme-light .chip-operator {
+  background: rgba(219, 39, 119, 0.1);
+  color: #be185d;
+  border-color: rgba(219, 39, 119, 0.2);
+}
+body.theme-light .chip-number, body.theme-light .chip-float {
+  background: rgba(217, 119, 6, 0.1);
+  color: #b45309;
+  border-color: rgba(217, 119, 6, 0.2);
+}
+body.theme-light .chip-string {
+  background: rgba(5, 150, 105, 0.1);
+  color: #047857;
+  border-color: rgba(5, 150, 105, 0.2);
+}
+body.theme-light .chip-variable {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.2);
+}
+body.theme-light .chip-function {
+  background: rgba(126, 34, 206, 0.1);
+  color: #6b21a8;
+  border-color: rgba(126, 34, 206, 0.2);
+}
+body.theme-light .chip-parameter {
+  background: rgba(13, 148, 136, 0.1);
+  color: #0f766e;
+  border-color: rgba(13, 148, 136, 0.2);
+}
+body.theme-light .chip-array {
+  background: rgba(234, 88, 12, 0.1);
+  color: #c2410c;
+  border-color: rgba(234, 88, 12, 0.2);
 }
 
 /* ==========================================================================
@@ -776,6 +953,10 @@ html, body {
   border-radius: var(--radius-md);
   background: var(--bg-subtle);
   overflow: hidden;
+}
+
+#cfgCanvasWrapper {
+  overflow: auto;
 }
 
 .canvas-floating-controls {

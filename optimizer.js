@@ -471,36 +471,57 @@ class TACOptimizer {
   }
 
   // -------------------------------------------------------------
-  // Side-by-Side Diff Generator
+  // Side-by-Side Diff Generator (LCS Myers-style Diff)
   // -------------------------------------------------------------
 
   generateDiff(beforeList, afterList) {
-    const diff = [];
-    const maxLen = Math.max(beforeList.length, afterList.length);
+    const bStrs = beforeList.map(i => (i ? i.toString().trim() : ''));
+    const aStrs = afterList.map(i => (i ? i.toString().trim() : ''));
+    const m = bStrs.length;
+    const n = aStrs.length;
 
-    // Simple diff comparison
-    for (let i = 0; i < maxLen; i++) {
-      const bInst = beforeList[i];
-      const aInst = afterList[i];
-
-      const bStr = bInst ? bInst.toString() : '';
-      const aStr = aInst ? aInst.toString() : '';
-
-      let status = 'unchanged';
-      if (!bInst && aInst) {
-        status = 'added';
-      } else if (bInst && !aInst) {
-        status = 'removed';
-      } else if (bStr !== aStr) {
-        status = 'modified';
+    // LCS Dynamic Programming table
+    const dp = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1));
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (bStrs[i - 1] === aStrs[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1] + 1;
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
       }
+    }
 
-      diff.push({
-        line: i + 1,
-        before: bStr,
-        after: aStr,
-        status // 'unchanged' | 'added' | 'removed' | 'modified'
-      });
+    // Backtrack to assemble diff tokens
+    const rawDiff = [];
+    let i = m, j = n;
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && bStrs[i - 1] === aStrs[j - 1]) {
+        rawDiff.push({ before: bStrs[i - 1], after: aStrs[j - 1], status: 'unchanged' });
+        i--;
+        j--;
+      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+        rawDiff.push({ before: '', after: aStrs[j - 1], status: 'added' });
+        j--;
+      } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
+        rawDiff.push({ before: bStrs[i - 1], after: '', status: 'removed' });
+        i--;
+      }
+    }
+    rawDiff.reverse();
+
+    // Consolidate adjacent removed + added into 'modified'
+    const diff = [];
+    let lineNum = 1;
+    for (let k = 0; k < rawDiff.length; k++) {
+      const cur = rawDiff[k];
+      const next = rawDiff[k + 1];
+      if (cur.status === 'removed' && next && next.status === 'added') {
+        diff.push({ line: lineNum++, before: cur.before, after: next.after, status: 'modified' });
+        k++;
+      } else {
+        diff.push({ line: lineNum++, before: cur.before, after: cur.after, status: cur.status });
+      }
     }
 
     return diff;

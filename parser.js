@@ -90,6 +90,7 @@ class Parser {
     this.tokens = tokens;
     this.current = 0;
     this.errors = [];
+    this.quickFixes = [];
     astNodeIdCounter = 0;
   }
 
@@ -99,6 +100,7 @@ class Parser {
     }
     this.current = 0;
     this.errors = [];
+    this.quickFixes = [];
     astNodeIdCounter = 0;
 
     const programNode = new ASTNode('Program', {
@@ -132,7 +134,8 @@ class Parser {
 
     return {
       ast: programNode,
-      errors: this.errors
+      errors: this.errors,
+      quickFixes: this.quickFixes
     };
   }
 
@@ -967,7 +970,42 @@ class Parser {
       return this.advance();
     }
     const token = this.peek();
-    this.error(token, message, suggestion);
+    const prev = this.previous();
+    const targetLine = prev ? prev.line : (token.line || 1);
+    const targetCol = prev ? (prev.col + (prev.length || 1)) : (token.col || 1);
+
+    const err = {
+      phase: 'Syntax',
+      line: targetLine,
+      col: targetCol,
+      length: 1,
+      message,
+      suggestion
+    };
+
+    if (value === ';') {
+      const qf = {
+        title: "Insert missing ';'",
+        line: targetLine,
+        col: targetCol,
+        append: ';',
+        type: 'append'
+      };
+      err.quickFix = qf;
+      this.quickFixes.push(qf);
+    } else if (value === '}') {
+      const qf = {
+        title: "Insert missing '}'",
+        line: targetLine,
+        col: targetCol,
+        patch: '}\n',
+        type: 'insert_line'
+      };
+      err.quickFix = qf;
+      this.quickFixes.push(qf);
+    }
+
+    this.errors.push(err);
     return null;
   }
 
@@ -1109,3 +1147,4 @@ class Parser {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { Parser, ASTNode };
 }
+

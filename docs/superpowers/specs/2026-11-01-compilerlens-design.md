@@ -194,3 +194,4 @@ The project is structured strictly across 10 modular files:
 - **Phase Viewports:** Tabbed container with slide/fade animations for all 7 phases + Output Console & VM visualizer.
 - **Summary Metrics Card:** Visual overview of token counts, AST depth, TAC lines before/after optimization, assembly size, and execution duration.
 - **Export Feature:** Downloads complete standalone HTML/PDF compilation report including all intermediate outputs, diagnostics, and console logs.
+

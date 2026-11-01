@@ -507,6 +507,7 @@ class VirtualMachine {
   triggerError(msg) {
     this.isHalted = true;
     this.isRunning = false;
+    this.lastError = msg;
     this.stopTimer();
     this.outputBuffer.push(`[ERROR] ${msg}`);
     if (this.onError) {
@@ -526,7 +527,8 @@ class VirtualMachine {
       stats: {
         instructionsExecuted: this.stepCount,
         executionTimeMs: this.stats.executionTimeMs,
-        exitCode: this.registers.R0
+        exitCode: this.registers.R0,
+        error: this.lastError || null
       },
       isHalted: this.isHalted,
       callStack: [...this.callStack]

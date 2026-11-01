@@ -76,3 +76,4 @@
 - [ ] Verify syntax error recovery.
 - [ ] Verify runtime error (division by zero, out of bounds).
 - [ ] Verify infinite loop watchdog guard.
+
