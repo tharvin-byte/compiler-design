@@ -192,7 +192,7 @@ function initDOM() {
   });
 
   // Tab Switching
-  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabBtns = document.querySelectorAll('.tab-item, .tab-btn');
   tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       switchTab(btn.dataset.tab);
@@ -200,7 +200,7 @@ function initDOM() {
   });
 
   // Stepper Node Clicks
-  const stepNodes = document.querySelectorAll('.step-node');
+  const stepNodes = document.querySelectorAll('.pill-btn, .step-node');
   stepNodes.forEach(node => {
     node.addEventListener('click', () => {
       switchTab(node.dataset.phase);
@@ -214,7 +214,7 @@ function initDOM() {
   document.getElementById('copyPhaseBtn').addEventListener('click', copyActivePhaseOutput);
 
   // Token Filter Tags
-  const filterTags = document.querySelectorAll('.tag-chip');
+  const filterTags = document.querySelectorAll('.tag-pill, .tag-chip');
   filterTags.forEach(tag => {
     tag.addEventListener('click', () => {
       filterTags.forEach(t => t.classList.remove('active'));
@@ -306,17 +306,17 @@ function switchTab(tabKey) {
   AppState.currentTab = tabKey;
   
   // Update Tab buttons
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('.tab-item, .tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tabKey);
   });
 
   // Update Step nodes active highlight
-  document.querySelectorAll('.step-node').forEach(node => {
+  document.querySelectorAll('.pill-btn, .step-node').forEach(node => {
     node.classList.toggle('active', node.dataset.phase === tabKey);
   });
 
   // Update tab content panes
-  document.querySelectorAll('.tab-content').forEach(pane => {
+  document.querySelectorAll('.tab-pane, .tab-content').forEach(pane => {
     pane.classList.remove('active');
   });
 
@@ -600,7 +600,7 @@ function resetStepIndicators() {
   steps.forEach(s => {
     const node = document.getElementById(`step-${s}`);
     if (node) {
-      node.className = `step-node ${s === 'execution' ? 'special-node' : ''}`;
+      node.className = `pill-btn ${s === 'execution' ? 'pill-highlight' : ''}`;
     }
   });
 }
@@ -1591,3 +1591,4 @@ function exportReport() {
   a.click();
   URL.revokeObjectURL(url);
 }
+

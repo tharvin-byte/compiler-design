@@ -39,6 +39,20 @@ test('All 10 required modular files exist', () => {
   }
 });
 
+// 1b. Verify DOM Element IDs
+test('DOM Element IDs in ui.js match index.html', () => {
+  const html = fs.readFileSync('./index.html', 'utf8');
+  const ui = fs.readFileSync('./ui.js', 'utf8');
+  const regex = /getElementById\(['"]([^'"]+)['"]\)/g;
+  let m;
+  const ids = [];
+  while ((m = regex.exec(ui)) !== null) {
+    ids.push(m[1]);
+  }
+  const missing = ids.filter(id => !html.includes(`id="${id}"`));
+  assert.strictEqual(missing.length, 0, `Missing DOM IDs: ${missing.join(', ')}`);
+});
+
 // Helper for full pipeline
 function compileAndRun(code, maxInst = 1000000) {
   const lexer = new Lexer(code).tokenize();
@@ -222,3 +236,4 @@ if (passedTests === totalTests) {
   console.error('SOME CHECKS FAILED!');
   process.exit(1);
 }
+
