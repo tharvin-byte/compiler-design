@@ -7,22 +7,15 @@ const { TACOptimizer } = require('./optimizer.js');
 const { CodeGenerator } = require('./codegen.js');
 const { VirtualMachine } = require('./vm.js');
 
-console.log('Testing Multiple-Run VM Execution & Phase Updates...\n');
+console.log('Testing MiniRuby Multiple-Run VM Execution & Phase Updates...\n');
 
 // 1. Multiple-Run Test on VM
-const code = `
-#include <stdio.h>
+const code = `def square(n)
+  return n * n
+end
 
-int square(int n) {
-  return n * n;
-}
-
-int main() {
-  int x = square(4);
-  printf("Result is %d\\n", x);
-  return 0;
-}
-`;
+x = square(4)
+puts x`;
 
 const lexer = new Lexer(code);
 const tokenRes = lexer.tokenize();
@@ -33,11 +26,11 @@ const semantic = new SemanticAnalyzer();
 const semanticRes = semantic.analyze(parserRes.ast, code);
 
 // Verify Semantic Table contains both user functions and standard built-ins
-assert(semanticRes.symbolTables.length >= 5, `Expected >= 5 symbols, got ${semanticRes.symbolTables.length}`);
-const printfSym = semanticRes.symbolTables.find(s => s.name === 'printf');
-assert(printfSym, 'printf should be present in symbol table');
-assert(printfSym.isBuiltin === true, 'printf should be marked isBuiltin');
-assert(printfSym.line === 'built-in', 'printf line should be "built-in"');
+assert(semanticRes.symbolTables.length >= 3, `Expected >= 3 symbols, got ${semanticRes.symbolTables.length}`);
+const putsSym = semanticRes.symbolTables.find(s => s.name === 'puts');
+assert(putsSym, 'puts should be present in symbol table');
+assert(putsSym.isBuiltin === true, 'puts should be marked isBuiltin');
+assert(putsSym.line === 'built-in', 'puts line should be "built-in"');
 
 const squareSym = semanticRes.symbolTables.find(s => s.name === 'square');
 assert(squareSym, 'square should be in symbol table');
@@ -73,7 +66,7 @@ vm.load(codegenRes.optimizedAssembly);
 for (let run = 1; run <= 5; run++) {
   const result = vm.runSynchronous();
   assert.strictEqual(result.output.length, 1, `Run ${run}: Expected 1 output line`);
-  assert.strictEqual(result.output[0], 'Result is 16\n', `Run ${run}: Output mismatch`);
+  assert.strictEqual(result.output[0], 16, `Run ${run}: Output mismatch`);
   assert.strictEqual(result.stats.exitCode, 0, `Run ${run}: Exit code should be 0`);
   assert.strictEqual(vm.isHalted, true, `Run ${run}: Should be halted after completion`);
   // Calling startAutoPlay or step automatically resets when halted!

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CompilerLens — 7-Phase Compiler & Virtual Machine</title>
+  <title>MiniRuby Compiler — 7-Phase Compiler & Target Virtual Machine</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -26,8 +26,8 @@
         </div>
         <div>
           <div class="brand-title-wrap">
-            <span class="brand-name">CompilerLens</span>
-            <span class="brand-badge">Interactive</span>
+            <span class="brand-name">MiniRuby</span>
+            <span class="brand-badge">Compiler</span>
           </div>
           <span class="brand-desc">7-Phase Compiler & Target Virtual Machine</span>
         </div>
@@ -37,14 +37,15 @@
         <div class="select-wrapper">
           <select id="exampleSelect" class="form-select" title="Choose a sample program">
             <option value="default">Default: Arithmetic & Function</option>
-            <option value="helloworld">Hello World (Standard C with #include)</option>
-            <option value="factorial">Factorial (Recursion: 5! = 120)</option>
-            <option value="fibonacci">Fibonacci (Recursion Series)</option>
-            <option value="bubblesort">Bubble Sort (Array Sorting)</option>
-            <option value="primechecker">Prime Checker (Nested Loops)</option>
-            <option value="optimization">Optimization Demo (Folding & DCE)</option>
-            <option value="semantic_error">Semantic Error Demo</option>
-            <option value="syntax_error">Syntax Error Demo</option>
+            <option value="helloworld">Hello World (puts & print)</option>
+            <option value="factorial">Factorial (Recursion)</option>
+            <option value="fibonacci">Fibonacci (Series)</option>
+            <option value="exponentiation">Exponentiation (**) & Precedence</option>
+            <option value="conditionals">Conditionals (if / elsif / else / end)</option>
+            <option value="whileloop">While Loop & Accumulation</option>
+            <option value="optimization">Optimization Demo (Constant Folding & DCE)</option>
+            <option value="semantic_error">Semantic Error Demo (Undefined Variable)</option>
+            <option value="syntax_error">Syntax Error Demo (Missing 'end')</option>
             <option value="runtime_divzero">Division by Zero Demo</option>
             <option value="infinite_loop">Infinite Loop Safety Demo</option>
           </select>
@@ -321,6 +322,13 @@
             <div id="icgCfgColumn">
               <h4 class="section-heading">Control Flow Graph</h4>
               <div class="canvas-frame" id="cfgCanvasWrapper" style="min-height: 480px;">
+                <div class="canvas-floating-controls">
+                  <button id="zoomInCfgBtn" class="btn btn-xs btn-icon" title="Zoom In">➕</button>
+                  <button id="zoomOutCfgBtn" class="btn btn-xs btn-icon" title="Zoom Out">➖</button>
+                  <button id="resetZoomCfgBtn" class="btn btn-xs btn-icon" title="Reset View">🎯</button>
+                  <button id="fitCfgBtn" class="btn btn-xs btn-icon" title="Fit to Screen">📐</button>
+                  <span class="canvas-hint">Drag to pan • Scroll to zoom • Click block</span>
+                </div>
                 <svg id="cfgSvg" class="svg-surface" width="100%" height="100%">
                   <defs>
                     <marker id="arrow-true" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto">
@@ -480,7 +488,7 @@
                 <button id="clearConsoleBtn" class="btn btn-ghost btn-xs">Clear</button>
               </div>
               <div class="terminal-body" id="consoleBody">
-                <div class="console-line system-line">CompilerLens Console Ready.</div>
+                <div class="console-line system-line">MiniRuby Compiler Console Ready.</div>
               </div>
 
               <!-- Interactive Input -->

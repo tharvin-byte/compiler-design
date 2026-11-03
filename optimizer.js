@@ -197,7 +197,7 @@ class TACOptimizer {
       }
 
       // Constant Folding
-      if (['+', '-', '*', '/', '%', '==', '!=', '<', '<=', '>', '>=', '&&', '||'].includes(inst.op)) {
+      if (['+', '-', '*', '/', '%', '**', '==', '!=', '<', '<=', '>', '>=', '&&', '||'].includes(inst.op)) {
         if (this.isConstant(inst.arg1) && this.isConstant(inst.arg2)) {
           const v1 = this.parseConstant(inst.arg1);
           const v2 = this.parseConstant(inst.arg2);
@@ -209,6 +209,7 @@ class TACOptimizer {
             case '*': foldedVal = v1 * v2; break;
             case '/': foldedVal = v2 !== 0 ? Math.trunc(v1 / v2) : null; break;
             case '%': foldedVal = v2 !== 0 ? v1 % v2 : null; break;
+            case '**': foldedVal = Math.pow(v1, v2); break;
             case '==': foldedVal = v1 === v2 ? 1 : 0; break;
             case '!=': foldedVal = v1 !== v2 ? 1 : 0; break;
             case '<':  foldedVal = v1 < v2 ? 1 : 0; break;
@@ -231,12 +232,18 @@ class TACOptimizer {
       }
 
       // Algebraic Simplification
-      // x + 0 -> x, 0 + x -> x, x - 0 -> x, x * 1 -> x, 1 * x -> x, x * 0 -> 0, 0 * x -> 0, x / 1 -> x, x - x -> 0
-      if (inst.op === '+' || inst.op === '-' || inst.op === '*' || inst.op === '/') {
+      // x + 0 -> x, 0 + x -> x, x - 0 -> x, x * 1 -> x, 1 * x -> x, x * 0 -> 0, 0 * x -> 0, x / 1 -> x, x - x -> 0, x ** 0 -> 1, x ** 1 -> x
+      if (inst.op === '+' || inst.op === '-' || inst.op === '*' || inst.op === '/' || inst.op === '**') {
         const beforeStr = inst.toString();
         let simplified = false;
 
-        if (inst.op === '+') {
+        if (inst.op === '**') {
+          if (inst.arg2 === '0' || inst.arg2 === 0) {
+            inst.op = '='; inst.arg1 = '1'; inst.arg2 = null; simplified = true;
+          } else if (inst.arg2 === '1' || inst.arg2 === 1) {
+            inst.op = '='; inst.arg2 = null; simplified = true;
+          }
+        } else if (inst.op === '+') {
           if (inst.arg2 === '0' || inst.arg2 === 0) {
             inst.op = '='; inst.arg2 = null; simplified = true;
           } else if (inst.arg1 === '0' || inst.arg1 === 0) {

@@ -1022,7 +1022,8 @@ body.theme-light .chip-builtin {
 }
 
 #cfgCanvasWrapper {
-  overflow: auto;
+  overflow: hidden;
+  user-select: none;
 }
 
 .canvas-floating-controls {
@@ -1122,6 +1123,17 @@ body.theme-light .chip-builtin {
   font-size: 10px;
 }
 
+.cfg-block-group {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.cfg-block-group:hover .cfg-block-rect {
+  stroke: var(--accent-primary);
+  stroke-width: 2px;
+  filter: drop-shadow(0 4px 14px rgba(212, 101, 62, 0.25));
+}
+
 .cfg-edge {
   fill: none;
   stroke-width: 1.8;
@@ -1151,14 +1163,14 @@ body.theme-light .chip-builtin {
 }
 
 #tacCodeViewport {
-  min-height: 480px;
-  height: 480px;
+  min-height: 520px;
+  height: 520px;
 }
 
 #cfgCanvasWrapper {
-  min-height: 480px;
-  height: 480px;
-  overflow: auto;
+  min-height: 520px;
+  height: 520px;
+  overflow: hidden;
 }
 
 @media (max-width: 900px) {

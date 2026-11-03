@@ -269,7 +269,11 @@ class VirtualMachine {
         const v1 = this.resolveValue(a1);
         const v2 = this.resolveValue(a2);
         if (a1 in this.registers) {
-          this.registers[a1] = v1 + v2;
+          if (typeof v1 === 'string' || typeof v2 === 'string') {
+            this.registers[a1] = `${v1}${v2}`;
+          } else {
+            this.registers[a1] = v1 + v2;
+          }
         } else if (a1 === 'SP') {
           this.SP += v2;
         }
@@ -290,7 +294,18 @@ class VirtualMachine {
       case 'MUL': {
         const v1 = this.resolveValue(a1);
         const v2 = this.resolveValue(a2);
-        this.registers[a1] = v1 * v2;
+        if (typeof v1 === 'string' && typeof v2 === 'number') {
+          this.registers[a1] = v1.repeat(Math.max(0, v2));
+        } else {
+          this.registers[a1] = v1 * v2;
+        }
+        break;
+      }
+
+      case 'POW': {
+        const v1 = this.resolveValue(a1);
+        const v2 = this.resolveValue(a2);
+        this.registers[a1] = Math.pow(v1, v2);
         break;
       }
 
@@ -426,6 +441,7 @@ class VirtualMachine {
         break;
       }
 
+      case 'PUTS':
       case 'PRINT': {
         let val = this.resolveValue(a1);
         if (typeof val === 'string' && /%[dsf]/.test(val)) {
@@ -706,7 +722,14 @@ class ASTInterpreter {
         const cond = this.evalExpr(stmt.condition, scope);
         if (cond) {
           return this.evalStmt(stmt.thenBranch, scope);
-        } else if (stmt.elseBranch) {
+        } else if (stmt.elsifBranches && stmt.elsifBranches.length > 0) {
+          for (const elsif of stmt.elsifBranches) {
+            if (this.evalExpr(elsif.condition, scope)) {
+              return this.evalStmt(elsif.body, scope);
+            }
+          }
+        }
+        if (stmt.elseBranch) {
           return this.evalStmt(stmt.elseBranch, scope);
         }
         return null;
@@ -782,11 +805,20 @@ class ASTInterpreter {
         const left = this.evalExpr(expr.left, scope);
         const right = this.evalExpr(expr.right, scope);
         switch (expr.operator) {
-          case '+': return left + right;
+          case '+':
+            if (typeof left === 'string' || typeof right === 'string') {
+              return String(left) + String(right);
+            }
+            return left + right;
           case '-': return left - right;
-          case '*': return left * right;
+          case '*':
+            if (typeof left === 'string' && typeof right === 'number') {
+              return left.repeat(Math.max(0, Math.floor(right)));
+            }
+            return left * right;
           case '/': return right !== 0 ? Math.trunc(left / right) : 0;
           case '%': return right !== 0 ? left % right : 0;
+          case '**': return Math.pow(left, right);
           case '==': return left === right ? 1 : 0;
           case '!=': return left !== right ? 1 : 0;
           case '<':  return left < right ? 1 : 0;
@@ -821,14 +853,16 @@ class ASTInterpreter {
         if (expr.left.type === 'Identifier') {
           let finalVal = rightVal;
           if (expr.operator !== '=') {
-            const cur = scope.get(expr.left.name) || 0;
+            const cur = scope.has(expr.left.name) ? scope.get(expr.left.name) : (this.globals.get(expr.left.name) || 0);
             const op = expr.operator.slice(0, -1);
-            if (op === '+') finalVal = cur + rightVal;
+            if (op === '+') finalVal = (typeof cur === 'string' || typeof rightVal === 'string') ? String(cur) + String(rightVal) : cur + rightVal;
             else if (op === '-') finalVal = cur - rightVal;
             else if (op === '*') finalVal = cur * rightVal;
             else if (op === '/') finalVal = rightVal !== 0 ? Math.trunc(cur / rightVal) : 0;
+            else if (op === '**') finalVal = Math.pow(cur, rightVal);
           }
           scope.set(expr.left.name, finalVal);
+          this.globals.set(expr.left.name, finalVal);
           return finalVal;
         } else if (expr.left.type === 'ArrayAccess') {
           const arr = scope.get(expr.left.array.name);
@@ -845,7 +879,7 @@ class ASTInterpreter {
         const callee = expr.callee.name;
         const args = (expr.arguments || []).map(a => this.evalExpr(a, scope));
 
-        if (callee === 'print' || callee === 'printf') {
+        if (callee === 'puts' || callee === 'print' || callee === 'printf') {
           if (callee === 'printf' && typeof args[0] === 'string' && /%[dsf]/.test(args[0])) {
             let regIdx = 1;
             const formatted = args[0].replace(/%[dsf]/g, () => {
@@ -856,10 +890,22 @@ class ASTInterpreter {
             this.outputBuffer.push(formatted);
           } else {
             for (const a of args) {
-              this.outputBuffer.push(a);
+              this.outputBuffer.push(a !== undefined && a !== null ? a : '');
             }
           }
           return 0;
+        }
+
+        if (callee === 'gets') {
+          return '0';
+        }
+
+        if (callee === 'to_i') {
+          return parseInt(args[0], 10) || 0;
+        }
+
+        if (callee === 'to_f') {
+          return parseFloat(args[0]) || 0;
         }
 
         const func = this.functions.get(callee);

@@ -1,13 +1,14 @@
 /**
- * CompilerLens - Intermediate Code Generator (icg.js)
- * Phase 4: Generates Three-Address Code (TAC) quadruples grouped by function,
- * partitions instructions into Basic Blocks, and builds the Control Flow Graph (CFG)
- * with coordinates for interactive SVG rendering.
+ * CompilerLens - MiniRuby Intermediate Code Generator (icg.js)
+ * Phase 4: Generates Three-Address Code (TAC) quadruples grouped by subroutine,
+ * handles MiniRuby constructs (assignments, exponentiation **, puts/print, if/elsif/else, while, def/end),
+ * partitions TAC instructions into Basic Blocks via leader analysis,
+ * and constructs the Control Flow Graph (CFG) with SVG coordinates.
  */
 
 class TACInstruction {
   constructor({ op, arg1 = null, arg2 = null, result = null, label = null, line = null, comment = '' }) {
-    this.op = op;             // e.g. '=', '+', '-', '*', '/', '%', '==', '!=', '<', '<=', '>', '>=', '&&', '||', '!', 'LABEL', 'GOTO', 'IF_GOTO', 'IF_FALSE_GOTO', 'PARAM', 'CALL', 'RETURN', 'ARRAY_LOAD', 'ARRAY_STORE'
+    this.op = op;             // e.g. '=', '+', '-', '*', '/', '%', '**', '==', '!=', '<', '<=', '>', '>=', '&&', '||', '!', 'NEG', 'LABEL', 'GOTO', 'IF_GOTO', 'IF_FALSE_GOTO', 'PARAM', 'CALL', 'RETURN', 'ARRAY_LOAD', 'ARRAY_STORE'
     this.arg1 = arg1;
     this.arg2 = arg2;
     this.result = result;
@@ -27,6 +28,7 @@ class TACInstruction {
       case '*':
       case '/':
       case '%':
+      case '**':
       case '==':
       case '!=':
       case '<':
@@ -68,10 +70,10 @@ class BasicBlock {
     this.instructions = [];
     this.predecessors = [];     // Array of block ids
     this.successors = [];       // Array of { targetId, type: 'unconditional'|'true'|'false'|'fallthrough' }
-    // Visual layout properties
+    // Visual layout coordinates
     this.x = 0;
     this.y = 0;
-    this.width = 240;
+    this.width = 260;
     this.height = 100;
   }
 }
@@ -84,7 +86,7 @@ class ICGGenerator {
     this.instructions = [];
     this.functions = [];        // Grouped by function: { name, returnType, params, instructions, blocks }
     this.currentFunction = null;
-    this.loopStack = [];        // For break and continue: { continueLabel, breakLabel }
+    this.loopStack = [];        // For break and next: { continueLabel, breakLabel }
   }
 
   generate(ast) {
@@ -98,81 +100,43 @@ class ICGGenerator {
 
     if (!ast) return { instructions: [], functions: [], blocks: [] };
 
-    // Separate top-level items: functions vs top-level globals and statements
+    // Separate user functions from top-level script statements
     const funcDecls = [];
-    const topLevelItems = [];
+    const topLevelStmts = [];
 
-    for (const decl of ast.declarations || []) {
-      if (decl.type === 'FunctionDeclaration') {
-        funcDecls.push(decl);
+    for (const stmt of ast.declarations || []) {
+      if (stmt.type === 'FunctionDeclaration') {
+        funcDecls.push(stmt);
       } else {
-        topLevelItems.push(decl);
+        topLevelStmts.push(stmt);
       }
     }
 
-    const userMain = funcDecls.find(f => f.name === 'main');
-
-    // 1. Process all helper functions (non-main)
+    // 1. Generate helper user-defined functions
     for (const func of funcDecls) {
-      if (func !== userMain) {
-        this.generateFunction(func);
-      }
+      this.generateFunction(func);
     }
 
-    // 2. Process main function (or synthesize main if omitted)
-    if (userMain) {
-      this.currentFunction = {
-        name: 'main',
-        returnType: userMain.returnType || 'int',
-        params: userMain.params || [],
-        instructions: [],
-        blocks: []
-      };
-      this.functions.push(this.currentFunction);
+    // 2. Synthesize main function for top-level MiniRuby script execution
+    this.currentFunction = {
+      name: 'main',
+      returnType: 'any',
+      params: [],
+      instructions: [],
+      blocks: []
+    };
+    this.functions.push(this.currentFunction);
 
-      this.emit('LABEL', null, null, 'func_main', userMain.line);
+    this.emit('LABEL', null, null, 'func_main', 1);
 
-      // Prepend top-level global variables, arrays, and statements into main entry
-      for (const item of topLevelItems) {
-        this.generateStatement(item);
-      }
-
-      // Then user main body statements
-      if (userMain.body) {
-        for (const stmt of userMain.body.statements || []) {
-          this.generateStatement(stmt);
-        }
-      }
-
-      // Ensure explicit return if missing
-      const last = this.currentFunction.instructions[this.currentFunction.instructions.length - 1];
-      if (!last || last.op !== 'RETURN') {
-        this.emit('RETURN', '0', null, null, userMain.line);
-      }
-
-      this.currentFunction = null;
-    } else {
-      // Synthesize default main function to execute top-level code!
-      this.currentFunction = {
-        name: 'main',
-        returnType: 'int',
-        params: [],
-        instructions: [],
-        blocks: []
-      };
-      this.functions.push(this.currentFunction);
-
-      this.emit('LABEL', null, null, 'func_main', 1);
-
-      for (const item of topLevelItems) {
-        this.generateStatement(item);
-      }
-
-      this.emit('RETURN', '0', null, null, 1);
-      this.currentFunction = null;
+    for (const stmt of topLevelStmts) {
+      this.generateStatement(stmt);
     }
 
-    // Partition basic blocks for each function
+    this.emit('RETURN', '0', null, null, 1);
+    this.currentFunction = null;
+
+    // 3. Partition basic blocks and build CFG for each function
     for (const func of this.functions) {
       func.blocks = this.buildBasicBlocks(func.instructions, func.name);
     }
@@ -200,97 +164,46 @@ class ICGGenerator {
     return inst;
   }
 
-  emitLabel(labelName, line = null) {
-    return this.emit('LABEL', null, null, labelName, line);
-  }
-
   // -------------------------------------------------------------
-  // Declarations
+  // Function Generation
   // -------------------------------------------------------------
 
-  generateFunction(node) {
-    const funcData = {
-      name: node.name,
-      returnType: node.returnType,
-      params: (node.params || []).map(p => p.name),
+  generateFunction(funcNode) {
+    const prevFunction = this.currentFunction;
+    this.currentFunction = {
+      name: funcNode.name,
+      returnType: 'any',
+      params: (funcNode.params || []).map(p => p.name),
       instructions: [],
       blocks: []
     };
-    this.functions.push(funcData);
-    this.currentFunction = funcData;
+    this.functions.push(this.currentFunction);
 
-    // Function Entry Label
-    this.emitLabel(`func_${node.name}`, node.line);
+    this.emit('LABEL', null, null, `func_${funcNode.name}`, funcNode.line);
 
-    // Generate Body
-    if (node.body) {
-      this.generateBlock(node.body);
-    }
-
-    // Ensure terminal return exists
-    const lastInst = funcData.instructions[funcData.instructions.length - 1];
-    if (!lastInst || lastInst.op !== 'RETURN') {
-      this.emit('RETURN', null, null, null, node.endLine || node.line, 'implicit void return');
-    }
-
-    this.currentFunction = null;
-  }
-
-  generateGlobalVariables(node) {
-    for (const decl of node.declarations || []) {
-      if (decl.init) {
-        const val = this.generateExpression(decl.init);
-        this.emit('=', val, null, decl.id.name, decl.line, `global init ${decl.id.name}`);
+    if (funcNode.body && funcNode.body.statements) {
+      for (const stmt of funcNode.body.statements) {
+        this.generateStatement(stmt);
       }
     }
-  }
 
-  generateGlobalArray(node) {
-    // Array declaration note in TAC
-    if (node.elements && node.elements.length > 0) {
-      node.elements.forEach((el, idx) => {
-        const val = this.generateExpression(el);
-        this.emit('ARRAY_STORE', node.name, idx, val, el.line);
-      });
+    // Ensure implicit return 0 / nil if function end was not an explicit return
+    const lastInst = this.currentFunction.instructions[this.currentFunction.instructions.length - 1];
+    if (!lastInst || lastInst.op !== 'RETURN') {
+      this.emit('RETURN', '0', null, null, funcNode.endLine || funcNode.line);
     }
+
+    this.currentFunction = prevFunction;
   }
 
   // -------------------------------------------------------------
-  // Statements
+  // Statement Generation
   // -------------------------------------------------------------
-
-  generateBlock(blockNode) {
-    for (const stmt of blockNode.statements || []) {
-      this.generateStatement(stmt);
-    }
-  }
 
   generateStatement(stmt) {
     if (!stmt) return;
 
     switch (stmt.type) {
-      case 'BlockStatement':
-        this.generateBlock(stmt);
-        break;
-
-      case 'VariableDeclaration':
-        for (const decl of stmt.declarations || []) {
-          if (decl.init) {
-            const val = this.generateExpression(decl.init);
-            this.emit('=', val, null, decl.id.name, decl.line);
-          }
-        }
-        break;
-
-      case 'ArrayDeclaration':
-        if (stmt.elements && stmt.elements.length > 0) {
-          stmt.elements.forEach((el, idx) => {
-            const val = this.generateExpression(el);
-            this.emit('ARRAY_STORE', stmt.name, idx, val, el.line);
-          });
-        }
-        break;
-
       case 'ExpressionStatement':
         if (stmt.expression) {
           this.generateExpression(stmt.expression);
@@ -298,145 +211,131 @@ class ICGGenerator {
         break;
 
       case 'IfStatement': {
-        const cond = this.generateExpression(stmt.condition);
-        const trueLabel = this.newLabel('L_then');
-        const falseLabel = this.newLabel('L_else');
-        const endLabel = this.newLabel('L_ifend');
+        const falseLabel = this.newLabel('L_else_');
+        const endLabel = this.newLabel('L_endif_');
 
-        if (stmt.elseBranch) {
-          this.emit('IF_GOTO', cond, null, trueLabel, stmt.line);
-          this.emit('GOTO', null, null, falseLabel, stmt.line);
+        // Condition
+        const condVal = this.generateExpression(stmt.condition);
+        this.emit('IF_FALSE_GOTO', condVal, null, falseLabel, stmt.line);
 
-          this.emitLabel(trueLabel, stmt.thenBranch.line);
-          this.generateStatement(stmt.thenBranch);
-          this.emit('GOTO', null, null, endLabel);
+        // Then Branch
+        if (stmt.thenBranch && stmt.thenBranch.statements) {
+          for (const s of stmt.thenBranch.statements) {
+            this.generateStatement(s);
+          }
+        }
 
-          this.emitLabel(falseLabel, stmt.elseBranch.line);
-          this.generateStatement(stmt.elseBranch);
+        // Jump over else
+        const hasElsif = stmt.elsifBranches && stmt.elsifBranches.length > 0;
+        const hasElse = stmt.elseBranch && stmt.elseBranch.statements && stmt.elseBranch.statements.length > 0;
 
-          this.emitLabel(endLabel);
-        } else {
-          this.emit('IF_FALSE_GOTO', cond, null, endLabel, stmt.line);
-          this.generateStatement(stmt.thenBranch);
-          this.emitLabel(endLabel);
+        if (hasElsif || hasElse) {
+          this.emit('GOTO', null, null, endLabel, stmt.line);
+        }
+
+        this.emit('LABEL', null, null, falseLabel, stmt.line);
+
+        // Elsif branches
+        let currentNextLabel = falseLabel;
+        for (let i = 0; i < (stmt.elsifBranches || []).length; i++) {
+          const elsifBranch = stmt.elsifBranches[i];
+          const nextElsifLabel = this.newLabel('L_elsif_');
+
+          const elsifCond = this.generateExpression(elsifBranch.condition);
+          this.emit('IF_FALSE_GOTO', elsifCond, null, nextElsifLabel, elsifBranch.condition.line);
+
+          if (elsifBranch.body && elsifBranch.body.statements) {
+            for (const s of elsifBranch.body.statements) {
+              this.generateStatement(s);
+            }
+          }
+          this.emit('GOTO', null, null, endLabel, elsifBranch.condition.line);
+          this.emit('LABEL', null, null, nextElsifLabel, elsifBranch.condition.line);
+        }
+
+        // Else Branch
+        if (hasElse) {
+          for (const s of stmt.elseBranch.statements) {
+            this.generateStatement(s);
+          }
+        }
+
+        if (hasElsif || hasElse) {
+          this.emit('LABEL', null, null, endLabel, stmt.line);
         }
         break;
       }
 
       case 'WhileStatement': {
-        const startLabel = this.newLabel('L_while_cond');
-        const bodyLabel = this.newLabel('L_while_body');
-        const endLabel = this.newLabel('L_while_end');
+        const startLabel = this.newLabel('L_while_start_');
+        const endLabel = this.newLabel('L_while_end_');
 
         this.loopStack.push({ continueLabel: startLabel, breakLabel: endLabel });
 
-        this.emitLabel(startLabel, stmt.line);
-        const cond = this.generateExpression(stmt.condition);
-        this.emit('IF_FALSE_GOTO', cond, null, endLabel, stmt.line);
+        this.emit('LABEL', null, null, startLabel, stmt.line);
+        const condVal = this.generateExpression(stmt.condition);
+        this.emit('IF_FALSE_GOTO', condVal, null, endLabel, stmt.line);
 
-        this.generateStatement(stmt.body);
-        this.emit('GOTO', null, null, startLabel);
-
-        this.emitLabel(endLabel);
-        this.loopStack.pop();
-        break;
-      }
-
-      case 'DoWhileStatement': {
-        const bodyLabel = this.newLabel('L_do_body');
-        const condLabel = this.newLabel('L_do_cond');
-        const endLabel = this.newLabel('L_do_end');
-
-        this.loopStack.push({ continueLabel: condLabel, breakLabel: endLabel });
-
-        this.emitLabel(bodyLabel, stmt.line);
-        this.generateStatement(stmt.body);
-
-        this.emitLabel(condLabel);
-        const cond = this.generateExpression(stmt.condition);
-        this.emit('IF_GOTO', cond, null, bodyLabel, stmt.line);
-
-        this.emitLabel(endLabel);
-        this.loopStack.pop();
-        break;
-      }
-
-      case 'ForStatement': {
-        const condLabel = this.newLabel('L_for_cond');
-        const stepLabel = this.newLabel('L_for_step');
-        const bodyLabel = this.newLabel('L_for_body');
-        const endLabel = this.newLabel('L_for_end');
-
-        this.loopStack.push({ continueLabel: stepLabel, breakLabel: endLabel });
-
-        // Init
-        if (stmt.init) {
-          if (stmt.init.type === 'VariableDeclaration') {
-            this.generateStatement(stmt.init);
-          } else {
-            this.generateExpression(stmt.init);
+        if (stmt.body && stmt.body.statements) {
+          for (const s of stmt.body.statements) {
+            this.generateStatement(s);
           }
         }
 
-        this.emitLabel(condLabel, stmt.line);
-        if (stmt.condition) {
-          const cond = this.generateExpression(stmt.condition);
-          this.emit('IF_FALSE_GOTO', cond, null, endLabel, stmt.line);
-        }
+        this.emit('GOTO', null, null, startLabel, stmt.line);
+        this.emit('LABEL', null, null, endLabel, stmt.line);
 
-        // Body
-        this.generateStatement(stmt.body);
-
-        // Step
-        this.emitLabel(stepLabel);
-        if (stmt.step) {
-          this.generateExpression(stmt.step);
-        }
-        this.emit('GOTO', null, null, condLabel);
-
-        this.emitLabel(endLabel);
         this.loopStack.pop();
         break;
       }
 
       case 'ReturnStatement': {
-        if (stmt.argument) {
-          const val = this.generateExpression(stmt.argument);
-          this.emit('RETURN', val, null, null, stmt.line);
-        } else {
-          this.emit('RETURN', null, null, null, stmt.line);
-        }
+        const val = stmt.argument ? this.generateExpression(stmt.argument) : '0';
+        this.emit('RETURN', val, null, null, stmt.line);
         break;
       }
 
       case 'BreakStatement': {
-        if (this.loopStack.length > 0) {
-          const loop = this.loopStack[this.loopStack.length - 1];
+        const loop = this.loopStack[this.loopStack.length - 1];
+        if (loop) {
           this.emit('GOTO', null, null, loop.breakLabel, stmt.line);
         }
         break;
       }
 
       case 'ContinueStatement': {
-        if (this.loopStack.length > 0) {
-          const loop = this.loopStack[this.loopStack.length - 1];
+        const loop = this.loopStack[this.loopStack.length - 1];
+        if (loop) {
           this.emit('GOTO', null, null, loop.continueLabel, stmt.line);
         }
         break;
       }
+
+      default:
+        break;
     }
   }
 
   // -------------------------------------------------------------
-  // Expressions
+  // Expression Generation
   // -------------------------------------------------------------
 
   generateExpression(expr) {
-    if (!expr) return null;
+    if (!expr) return '0';
 
     switch (expr.type) {
-      case 'Literal':
-        return expr.raw !== undefined ? expr.raw : expr.value;
+      case 'Literal': {
+        if (expr.dataType === 'string') {
+          return `"${expr.value}"`;
+        }
+        if (expr.dataType === 'nil') {
+          return '0';
+        }
+        if (expr.dataType === 'bool') {
+          return expr.value ? '1' : '0';
+        }
+        return String(expr.value);
+      }
 
       case 'Identifier':
         return expr.name;
@@ -460,57 +359,31 @@ class ICGGenerator {
       case 'UnaryExpression': {
         const arg = this.generateExpression(expr.argument);
         const temp = this.newTemp();
-        const op = expr.operator === '-' ? 'NEG' : expr.operator;
+        const op = expr.operator === '-' ? 'NEG' : '!';
         this.emit(op, arg, null, temp, expr.line);
         return temp;
       }
 
-      case 'UpdateExpression': {
-        const isPrefix = expr.prefix;
-        const op = expr.operator === '++' ? '+' : '-';
-        const target = expr.argument.name;
-
-        if (isPrefix) {
-          this.emit(op, target, '1', target, expr.line);
-          return target;
-        } else {
-          const temp = this.newTemp();
-          this.emit('=', target, null, temp, expr.line);
-          this.emit(op, target, '1', target, expr.line);
-          return temp;
-        }
-      }
-
       case 'AssignmentExpression': {
         const rightVal = this.generateExpression(expr.right);
-        const op = expr.operator;
 
-        if (expr.left.type === 'Identifier') {
-          const varName = expr.left.name;
-          if (op === '=') {
-            this.emit('=', rightVal, null, varName, expr.line);
-          } else {
-            // Compound assignment: +=, -=, *=, /=, %=
-            const baseOp = op.slice(0, -1);
-            const temp = this.newTemp();
-            this.emit(baseOp, varName, rightVal, temp, expr.line);
-            this.emit('=', temp, null, varName, expr.line);
+        if (expr.operator === '=') {
+          if (expr.left.type === 'Identifier') {
+            this.emit('=', rightVal, null, expr.left.name, expr.line);
+            return expr.left.name;
+          } else if (expr.left.type === 'ArrayAccess') {
+            const idxVal = this.generateExpression(expr.left.index);
+            this.emit('ARRAY_STORE', expr.left.array.name, idxVal, rightVal, expr.line);
+            return rightVal;
           }
-          return varName;
-        } else if (expr.left.type === 'ArrayAccess') {
-          const arrName = expr.left.array.name;
-          const idxVal = this.generateExpression(expr.left.index);
-          if (op === '=') {
-            this.emit('ARRAY_STORE', arrName, idxVal, rightVal, expr.line);
-          } else {
-            const baseOp = op.slice(0, -1);
-            const currentVal = this.newTemp();
-            this.emit('ARRAY_LOAD', arrName, idxVal, currentVal, expr.line);
-            const newVal = this.newTemp();
-            this.emit(baseOp, currentVal, rightVal, newVal, expr.line);
-            this.emit('ARRAY_STORE', arrName, idxVal, newVal, expr.line);
-          }
-          return rightVal;
+        } else {
+          // Compound assignment: +=, -=, *=, /=, %=, **=
+          const binOp = expr.operator.slice(0, -1);
+          const target = expr.left.name;
+          const temp = this.newTemp();
+          this.emit(binOp, target, rightVal, temp, expr.line);
+          this.emit('=', temp, null, target, expr.line);
+          return target;
         }
         return rightVal;
       }
@@ -519,14 +392,15 @@ class ICGGenerator {
         const callee = expr.callee.name;
         const argValues = (expr.arguments || []).map(arg => this.generateExpression(arg));
 
+        // Push arguments
         for (const argVal of argValues) {
           this.emit('PARAM', argVal, null, null, expr.line);
         }
 
-        // Void built-ins or expression calls
-        if (callee === 'print' || callee === 'printf') {
+        // I/O commands or standard function call
+        if (callee === 'puts' || callee === 'print') {
           this.emit('CALL', callee, argValues.length, null, expr.line);
-          return null;
+          return '0';
         }
 
         const retTemp = this.newTemp();
@@ -535,10 +409,9 @@ class ICGGenerator {
       }
 
       case 'ArrayAccess': {
-        const arrName = expr.array.name;
         const idxVal = this.generateExpression(expr.index);
         const temp = this.newTemp();
-        this.emit('ARRAY_LOAD', arrName, idxVal, temp, expr.line);
+        this.emit('ARRAY_LOAD', expr.array.name, idxVal, temp, expr.line);
         return temp;
       }
 
@@ -546,12 +419,12 @@ class ICGGenerator {
         return this.generateExpression(expr.expression);
 
       default:
-        return null;
+        return '0';
     }
   }
 
   // -------------------------------------------------------------
-  // Basic Block Partitioning & Control Flow Graph
+  // Basic Block Partitioning & CFG
   // -------------------------------------------------------------
 
   buildBasicBlocks(instructions, funcName = 'main') {
@@ -559,17 +432,15 @@ class ICGGenerator {
 
     // Step 1: Identify leaders
     const isLeader = new Array(instructions.length).fill(false);
-    isLeader[0] = true; // First instruction is leader
+    isLeader[0] = true;
 
     for (let i = 0; i < instructions.length; i++) {
       const inst = instructions[i];
 
-      // Targets of jumps are leaders
       if (inst.op === 'LABEL') {
         isLeader[i] = true;
       }
 
-      // Instruction following a jump or return is a leader
       if (inst.op === 'GOTO' || inst.op === 'IF_GOTO' || inst.op === 'IF_FALSE_GOTO' || inst.op === 'RETURN') {
         if (i + 1 < instructions.length) {
           isLeader[i + 1] = true;
@@ -612,7 +483,6 @@ class ICGGenerator {
     for (let i = 0; i < blocks.length; i++) {
       const b = blocks[i];
       const last = b.instructions[b.instructions.length - 1];
-
       if (!last) continue;
 
       if (last.op === 'GOTO') {
@@ -625,7 +495,6 @@ class ICGGenerator {
         if (targetBlock) {
           b.successors.push({ targetId: targetBlock, type: 'true' });
         }
-        // Fall-through false branch
         if (i + 1 < blocks.length) {
           b.successors.push({ targetId: blocks[i + 1].id, type: 'false' });
         }
@@ -634,21 +503,19 @@ class ICGGenerator {
         if (targetBlock) {
           b.successors.push({ targetId: targetBlock, type: 'false' });
         }
-        // Fall-through true branch
         if (i + 1 < blocks.length) {
           b.successors.push({ targetId: blocks[i + 1].id, type: 'true' });
         }
       } else if (last.op === 'RETURN') {
-        // Function exit, no successor
+        // Function exit, no successors
       } else {
-        // Fall-through
         if (i + 1 < blocks.length) {
           b.successors.push({ targetId: blocks[i + 1].id, type: 'fallthrough' });
         }
       }
     }
 
-    // Compute predecessor lists
+    // Step 5: Compute predecessors
     for (const b of blocks) {
       for (const succ of b.successors) {
         const target = blocks.find(blk => blk.id === succ.targetId);
@@ -658,52 +525,11 @@ class ICGGenerator {
       }
     }
 
-    // Step 5: Compute CFG visual layout coordinates
-    ICGGenerator.computeCFGLayout(blocks);
-
     return blocks;
-  }
-
-  // -------------------------------------------------------------
-  // CFG Diagram SVG Layout
-  // -------------------------------------------------------------
-
-  static computeCFGLayout(blocks) {
-    if (!blocks || blocks.length === 0) return { width: 400, height: 300 };
-
-    const blockWidth = 260;
-    const verticalGap = 70;
-    const horizontalGap = 80;
-
-    let currentY = 50;
-
-    // Simple top-to-bottom layout with branches branching slightly right
-    for (let i = 0; i < blocks.length; i++) {
-      const b = blocks[i];
-      const instCount = b.instructions.length;
-      b.width = blockWidth;
-      b.height = Math.max(70, instCount * 22 + 45);
-
-      // Check if this block is an 'else' or side branch
-      const hasBackEdge = b.successors.some(s => {
-        const targetIdx = blocks.findIndex(blk => blk.id === s.targetId);
-        return targetIdx <= i;
-      });
-
-      b.x = 80;
-      b.y = currentY;
-      currentY += b.height + verticalGap;
-    }
-
-    return {
-      width: blockWidth + 240,
-      height: currentY + 50
-    };
   }
 }
 
-// Export for browser and node testing
+// Export for Node.js test suites
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { ICGGenerator, TACInstruction, BasicBlock };
 }
-

@@ -175,7 +175,8 @@ class CodeGenerator {
       case '-':
       case '*':
       case '/':
-      case '%': {
+      case '%':
+      case '**': {
         // Binary arithmetic: result = arg1 op arg2
         // Load arg1 into R0
         if (this.isConstant(tac.arg1)) {
@@ -197,6 +198,7 @@ class CodeGenerator {
         else if (tac.op === '*') asmOp = 'MUL';
         else if (tac.op === '/') asmOp = 'DIV';
         else if (tac.op === '%') asmOp = 'MOD';
+        else if (tac.op === '**') asmOp = 'POW';
 
         this.emit(asmOp, 'R0', 'R1', `R0 = R0 ${tac.op} R1`);
         this.emit('STORE', this.getVarLocation(tac.result), 'R0', `store result in ${tac.result}`);
@@ -373,23 +375,33 @@ class CodeGenerator {
         const callee = tac.arg1;
         const argCount = parseInt(tac.arg2, 10) || 0;
 
-        if (callee === 'print' || callee === 'printf') {
+        if (callee === 'puts' || callee === 'print' || callee === 'printf') {
           if (argCount <= 1) {
-            this.emit('POP', 'R0', null, 'pop value to print');
-            this.emit('PRINT', 'R0', null, 'console output');
+            this.emit('POP', 'R0', null, 'pop value to output');
+            this.emit(callee === 'puts' ? 'PUTS' : 'PRINT', 'R0', null, `${callee} console output`);
           } else {
             for (let i = argCount - 1; i >= 0; i--) {
-              this.emit('POP', `R${i % 8}`, null, `pop printf argument ${i}`);
+              this.emit('POP', `R${i % 8}`, null, `pop argument ${i}`);
             }
-            this.emit('PRINT', 'R0', null, 'console output with format args');
+            this.emit(callee === 'puts' ? 'PUTS' : 'PRINT', 'R0', null, `${callee} console output`);
           }
           break;
         }
 
-        if (callee === 'scanf' || callee === 'input') {
-          this.emit('INPUT', 'R0', null, 'read integer input');
+        if (callee === 'gets' || callee === 'scanf' || callee === 'input') {
+          this.emit('INPUT', 'R0', null, 'read input');
           if (tac.result) {
             this.emit('STORE', this.getVarLocation(tac.result), 'R0', `save input into ${tac.result}`);
+          }
+          break;
+        }
+
+        if (callee === 'to_i' || callee === 'to_f') {
+          if (argCount >= 1) {
+            this.emit('POP', 'R0', null, 'pop value to convert');
+          }
+          if (tac.result) {
+            this.emit('STORE', this.getVarLocation(tac.result), 'R0', `store converted value into ${tac.result}`);
           }
           break;
         }

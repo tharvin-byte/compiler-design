@@ -29,6 +29,7 @@ class MockElement {
   appendChild(c) { this.children.push(c); }
   setAttribute() {}
   getAttribute() { return ''; }
+  removeAttribute() {}
   scrollIntoView() {}
 }
 
@@ -68,12 +69,11 @@ for (const s of scripts) {
   vm.runInContext(fs.readFileSync('./' + s, 'utf8'), context);
 }
 
-const code = `#include <stdio.h>
+const code = `def square(n)
+  return n * n
+end
 
-int main() {
-    printf("Hello, World!\\n");
-    return 0;
-}`;
+puts square(4)`;
 
 context.testCode = code;
 vm.runInContext(`

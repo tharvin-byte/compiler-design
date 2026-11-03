@@ -42,134 +42,132 @@ const AppState = {
 
   // AST SVG Navigation
   astPan: { x: 0, y: 0, scale: 1, isDragging: false, startX: 0, startY: 0 },
-  hoveredAstNode: null
+  hoveredAstNode: null,
+
+  // CFG SVG Navigation
+  cfgPan: { x: 0, y: 0, scale: 1, isDragging: false, startX: 0, startY: 0 },
+  cfgDimensions: { width: 600, height: 500 }
 };
 
 // Built-in Examples
 const EXAMPLES = {
-  default: `int square(int n) {
-    return n * n;
-}
+  default: `# MiniRuby Arithmetic & Functions
+def square(n)
+  return n * n
+end
 
-int main() {
-    int b = 5;
-    int c = 10;
-    int a = b + c * 2;
-    print(a);
-    for (int i = 1; i <= 3; i++) {
-        print(square(i));
-    }
-    return 0;
-}`,
+b = 5
+c = 10
+a = b + c * 2
+puts a
 
-  helloworld: `#include <stdio.h>
+i = 1
+while i <= 3
+  puts square(i)
+  i = i + 1
+end`,
 
-int main() {
-    printf("Hello, World!\\n");
-    return 0;
-}`,
+  helloworld: `# Hello World in MiniRuby
+puts "Hello, World!"
+puts "Welcome to MiniRuby Compiler"`,
 
-  factorial: `int factorial(int n) {
-    if (n <= 1) {
-        return 1;
-    }
-    return n * factorial(n - 1);
-}
+  factorial: `# Recursive Factorial in MiniRuby
+def factorial(n)
+  if n <= 1
+    return 1
+  else
+    return n * factorial(n - 1)
+  end
+end
 
-int main() {
-    int res = factorial(5);
-    print(res);
-    return 0;
-}`,
+res = factorial(5)
+puts "Factorial of 5:"
+puts res`,
 
-  fibonacci: `int fib(int n) {
-    if (n <= 0) return 0;
-    if (n == 1) return 1;
-    return fib(n - 1) + fib(n - 2);
-}
+  fibonacci: `# Fibonacci Series in MiniRuby
+def fib(n)
+  if n <= 0
+    return 0
+  elsif n == 1
+    return 1
+  else
+    return fib(n - 1) + fib(n - 2)
+  end
+end
 
-int main() {
-    for (int i = 0; i < 7; i++) {
-        print(fib(i));
-    }
-    return 0;
-}`,
+i = 0
+while i < 7
+  puts fib(i)
+  i = i + 1
+end`,
 
-  bubblesort: `int main() {
-    int arr[5] = {50, 20, 40, 10, 30};
-    for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 4; j++) {
-            if (arr[j] > arr[j + 1]) {
-                int temp = arr[j];
-                arr[j] = arr[j + 1];
-                arr[j + 1] = temp;
-            }
-        }
-    }
-    for (int k = 0; k < 5; k++) {
-        print(arr[k]);
-    }
-    return 0;
-}`,
+  exponentiation: `# Exponentiation Operator (**) & Precedence
+base = 2
+exp = 8
+result = base ** exp
+puts "2 ** 8 = "
+puts result
 
-  primechecker: `int isPrime(int n) {
-    if (n <= 1) return 0;
-    for (int i = 2; i * i <= n; i++) {
-        if (n % i == 0) return 0;
-    }
-    return 1;
-}
+# Operator precedence: 2 * 3 ** 2 = 2 * 9 = 18
+calc = 2 * 3 ** 2
+puts "2 * 3 ** 2 = "
+puts calc`,
 
-int main() {
-    for (int num = 2; num <= 15; num++) {
-        if (isPrime(num) == 1) {
-            print(num);
-        }
-    }
-    return 0;
-}`,
+  conditionals: `# MiniRuby If-Elsif-Else Branches
+score = 85
 
-  optimization: `int main() {
-    // Constant folding & propagation demo
-    int a = 10 + 20 * 3;
-    int b = a + 0;
-    int c = b * 1;
-    int d = c - c;
-    int dead = 999;
-    print(c);
-    return 0;
-}`,
+if score >= 90
+  puts "Grade A"
+elsif score >= 80
+  puts "Grade B"
+elsif score >= 70
+  puts "Grade C"
+else
+  puts "Grade F"
+end`,
 
-  semantic_error: `int main() {
-    // b and c are undeclared - triggers semantic error & quick fix
-    int a = b + c;
-    print(a);
-    return 0;
-}`,
+  whileloop: `# MiniRuby While Loop
+sum = 0
+x = 1
 
-  syntax_error: `int main() {
-    // Missing semicolon on line 3 - triggers syntax recovery
-    int a = 5
-    int b = 10;
-    print(a + b);
-    return 0;
-}`,
+while x <= 5
+  sum = sum + x
+  x = x + 1
+end
 
-  runtime_divzero: `int main() {
-    int x = 42;
-    int zero = 0;
-    int y = x / zero;
-    print(y);
-    return 0;
-}`,
+puts "Sum from 1 to 5:"
+puts sum`,
 
-  infinite_loop: `int main() {
-    int count = 0;
-    while (1) {
-        count++;
-    }
-    return 0;
-}`
+  optimization: `# Optimization Demo: Constant Folding & Simplification
+# Folded at compile time: 10 + 20 * 2 -> 50
+result = 10 + 20 * 2
+puts result
+
+# Algebraic simplification: x ** 0 -> 1, x * 1 -> x
+p = result ** 0
+puts p`,
+
+  semantic_error: `# Semantic Error Demo: Undefined Variable
+x = 10
+result = x + undefined_variable
+puts result`,
+
+  syntax_error: `# Syntax Error Demo: Missing 'end' statement
+if x > 5
+  puts "Hello"
+`,
+
+  runtime_divzero: `# Runtime Safety: Division by Zero
+x = 42
+zero = 0
+y = x / zero
+puts y`,
+
+  infinite_loop: `# Infinite Loop Safety Demo
+count = 0
+while true
+  count = count + 1
+end`
 };
 
 // Initializer
@@ -180,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initPipelineControls();
   initVMControls();
   initASTViewer();
+  initCFGViewer();
   compileAndRunAll(); // Initial run on load
 });
 
@@ -304,18 +303,23 @@ function loadSavedState() {
       temp.innerHTML = clean;
       clean = (temp.textContent || temp.innerText || clean).replace(/<[^>]*>/g, '');
     }
+    // If the saved code is legacy C syntax, reset to default MiniRuby code
+    if (clean.includes('int main') || clean.includes('#include') || clean.includes('int square') || clean.includes('printf(')) {
+      clean = EXAMPLES.default;
+      localStorage.setItem('compilerlens_code', EXAMPLES.default);
+    }
     if (clean.trim().length > 0) {
       editor.value = clean;
       AppState.sourceCode = clean;
     } else {
       editor.value = EXAMPLES.default;
       AppState.sourceCode = EXAMPLES.default;
-      localStorage.removeItem('compilerlens_code');
+      localStorage.setItem('compilerlens_code', EXAMPLES.default);
     }
   } else {
     editor.value = EXAMPLES.default;
     AppState.sourceCode = EXAMPLES.default;
-    localStorage.removeItem('compilerlens_code');
+    localStorage.setItem('compilerlens_code', EXAMPLES.default);
   }
 }
 
@@ -473,7 +477,7 @@ function updateEditorHighlight(errors = []) {
 
 function highlightCode(code, errorMap = new Map()) {
   if (!code) return '';
-  const tokenRegex = /(\/\*[\s\S]*?\*\/)|(\/\/[^\n]*)|(#[^\n]*)|("(?:\\.|[^"\\])*")|('(?:\\.|[^'\\])*')|(\b(?:int|float|char|bool|void)\b)|(\b(?:if|else|while|for|do|break|continue|return|print|printf|scanf|input|true|false)\b)|(\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(==|!=|<=|>=|&&|\|\||\+\+|--|\+=|-=|\*=|\/=|%=|[+\-*\/%=<>!&|])|([;,(){}\[\]])|([a-zA-Z_]\w*)|(\s+)|(.)/g;
+  const tokenRegex = /(=begin[\s\S]*?=end)|(#[^\n]*)|("(?:\\.|[^"\\])*")|('(?:\\.|[^'\\])*')|(\b(?:def|end|if|elsif|else|while|return|puts|print|gets|true|false|nil)\b)|(\b(?:to_i|to_f)\b)|(\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(\*\*=|==|!=|<=|>=|&&|\|\||\+=|-=|\*=|\/=|%=|\*\*|[+\-*\/%=<>!&|])|([;,(){}\[\]])|([a-zA-Z_]\w*)|(\s+)|(.)/g;
 
   let out = '';
   let match;
@@ -481,14 +485,13 @@ function highlightCode(code, errorMap = new Map()) {
   const markedLines = new Set();
 
   while ((match = tokenRegex.exec(code)) !== null) {
-    const [full, commentMulti, commentSingle, preproc, str, ch, typeKw, kw, num, op, punct, ident, ws, other] = match;
+    const [full, commentBlock, commentSingle, str, ch, kw, typeKw, num, op, punct, ident, ws, other] = match;
     let spanClass = '';
 
-    if (commentMulti || commentSingle) spanClass = 'hl-comment';
-    else if (preproc) spanClass = 'hl-preprocessor';
+    if (commentBlock || commentSingle) spanClass = 'hl-comment';
     else if (str || ch) spanClass = 'hl-string';
-    else if (typeKw) spanClass = 'hl-type';
     else if (kw) spanClass = 'hl-keyword';
+    else if (typeKw) spanClass = 'hl-type';
     else if (num) spanClass = 'hl-number';
     else if (op) spanClass = 'hl-operator';
     else if (punct) spanClass = 'hl-punctuation';
@@ -1169,6 +1172,130 @@ function toggleICGView(view) {
     cfgCol.style.flexDirection = 'column';
     cfgBtn.classList.add('active');
   }
+
+  setTimeout(() => {
+    if (AppState.results.icg?.functions) {
+      centerCFGView();
+    }
+  }, 60);
+}
+
+function initCFGViewer() {
+  const svg = document.getElementById('cfgSvg');
+  if (!svg) return;
+
+  svg.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    AppState.cfgPan.isDragging = true;
+    AppState.cfgPan.startX = e.clientX - AppState.cfgPan.x;
+    AppState.cfgPan.startY = e.clientY - AppState.cfgPan.y;
+    svg.style.cursor = 'grabbing';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!AppState.cfgPan.isDragging) return;
+    AppState.cfgPan.x = e.clientX - AppState.cfgPan.startX;
+    AppState.cfgPan.y = e.clientY - AppState.cfgPan.startY;
+    applyCFGTransform();
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (AppState.cfgPan.isDragging) {
+      AppState.cfgPan.isDragging = false;
+      const s = document.getElementById('cfgSvg');
+      if (s) s.style.cursor = 'grab';
+    }
+  });
+
+  svg.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 1.15 : 0.88;
+    const oldScale = AppState.cfgPan.scale;
+    const newScale = Math.min(3, Math.max(0.2, oldScale * delta));
+
+    const rect = svg.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    AppState.cfgPan.x = mouseX - (mouseX - AppState.cfgPan.x) * (newScale / oldScale);
+    AppState.cfgPan.y = mouseY - (mouseY - AppState.cfgPan.y) * (newScale / oldScale);
+    AppState.cfgPan.scale = newScale;
+
+    applyCFGTransform();
+  }, { passive: false });
+
+  const zoomInBtn = document.getElementById('zoomInCfgBtn');
+  if (zoomInBtn) {
+    zoomInBtn.addEventListener('click', () => {
+      AppState.cfgPan.scale = Math.min(3, AppState.cfgPan.scale * 1.25);
+      applyCFGTransform();
+    });
+  }
+
+  const zoomOutBtn = document.getElementById('zoomOutCfgBtn');
+  if (zoomOutBtn) {
+    zoomOutBtn.addEventListener('click', () => {
+      AppState.cfgPan.scale = Math.max(0.2, AppState.cfgPan.scale * 0.8);
+      applyCFGTransform();
+    });
+  }
+
+  const resetBtn = document.getElementById('resetZoomCfgBtn');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      const dim = AppState.cfgDimensions || { width: 600, height: 500 };
+      centerCFGView(dim.width, dim.height);
+    });
+  }
+
+  const fitBtn = document.getElementById('fitCfgBtn');
+  if (fitBtn) {
+    fitBtn.addEventListener('click', () => {
+      const dim = AppState.cfgDimensions || { width: 600, height: 500 };
+      centerCFGView(dim.width, dim.height);
+    });
+  }
+}
+
+function centerCFGView(totalWidth, totalHeight) {
+  const dim = AppState.cfgDimensions || { width: 600, height: 500 };
+  const wTarget = totalWidth || dim.width || 600;
+  const hTarget = totalHeight || dim.height || 500;
+
+  const svg = document.getElementById('cfgSvg');
+  const w = (svg && svg.clientWidth > 0) ? svg.clientWidth : 750;
+  const h = (svg && svg.clientHeight > 0) ? svg.clientHeight : 520;
+
+  const scaleX = (w - 60) / Math.max(100, wTarget);
+  const scaleY = (h - 60) / Math.max(100, hTarget);
+  const fitScale = Math.min(1.0, Math.max(0.35, Math.min(scaleX, scaleY)));
+
+  AppState.cfgPan.scale = fitScale;
+  AppState.cfgPan.x = Math.max(20, (w - wTarget * fitScale) / 2);
+  AppState.cfgPan.y = 25;
+  applyCFGTransform();
+}
+
+function applyCFGTransform() {
+  const rootG = document.getElementById('cfgSvgRoot');
+  if (rootG) {
+    rootG.setAttribute('transform', `translate(${AppState.cfgPan.x}, ${AppState.cfgPan.y}) scale(${AppState.cfgPan.scale})`);
+  }
+}
+
+function highlightBlockInTac(blockId) {
+  const group = document.getElementById(`cfg-block-${blockId}`);
+  if (group) {
+    const rect = group.querySelector('.cfg-block-rect');
+    if (rect) {
+      rect.style.stroke = 'var(--accent-primary)';
+      rect.style.strokeWidth = '3px';
+      setTimeout(() => {
+        rect.style.stroke = '';
+        rect.style.strokeWidth = '';
+      }, 900);
+    }
+  }
 }
 
 function renderCFGSvg(functions) {
@@ -1213,7 +1340,7 @@ function renderCFGSvg(functions) {
       // Basic block rect
       const headerH = 26;
       blocksSvg += `
-        <g class="cfg-block-group" transform="translate(${b.x}, ${b.y})">
+        <g class="cfg-block-group" id="cfg-block-${escapeHtml(b.id)}" transform="translate(${b.x}, ${b.y})" onclick="highlightBlockInTac('${escapeHtml(b.id)}')">
           <rect class="cfg-block-rect" width="${b.width}" height="${b.height}" rx="6" />
           <rect class="cfg-block-header" width="${b.width}" height="${headerH}" rx="6" />
           <text class="cfg-block-title" x="12" y="17">${escapeHtml(b.id)} ${b.label ? `[${escapeHtml(b.label)}]` : ''} - ${escapeHtml(f.name)}</text>
@@ -1260,9 +1387,15 @@ function renderCFGSvg(functions) {
   });
 
   rootG.innerHTML = edgesSvg + blocksSvg + funcHeadersSvg;
-  svg.setAttribute('viewBox', `0 0 ${totalMaxX} ${totalMaxY}`);
-  svg.style.width = `${totalMaxX}px`;
-  svg.style.height = `${totalMaxY}px`;
+  AppState.cfgDimensions = { width: totalMaxX, height: totalMaxY };
+
+  if (typeof svg.removeAttribute === 'function') {
+    svg.removeAttribute('viewBox');
+  }
+  svg.style.width = '100%';
+  svg.style.height = '100%';
+
+  centerCFGView(totalMaxX, totalMaxY);
 }
 
 // Phase 5: Optimizer Renderer
